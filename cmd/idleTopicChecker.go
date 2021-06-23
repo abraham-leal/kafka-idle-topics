@@ -29,6 +29,9 @@ func main() {
 
 	noCGnoStorageTopics := noSubscribedGroupsTopics(getNoProductionTopics(getNoStorageTopics(getTopics(adminClient))))
 
+	fmt.Println()
+	fmt.Println("Idle topics: ")
+
 	for t,_ := range noCGnoStorageTopics {
 		fmt.Println(t)
 	}
@@ -95,7 +98,7 @@ func getNoStorageTopics(topicMetadata map[string]sarama.TopicDetail) map[string]
 			if err != nil {
 				log.Fatalf("Could not determine topic storage: %v", err)
 			}
-			if oldestOffsetForPartition == newestOffsetForPartition-1 {
+			if oldestOffsetForPartition != newestOffsetForPartition {
 				delete(topicMetadata, t)
 			}
 		}

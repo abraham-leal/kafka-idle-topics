@@ -157,6 +157,7 @@ func deleteConsumerGroupHelper (groupName string) {
 }
 
 func consumerGroupTopicHelper (topicName string, cgName string) {
+	log.Printf("In consumer group helper")
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
@@ -237,6 +238,7 @@ func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
 func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
 		session.MarkMessage(message, "")
+		log.Printf("Message: %v", message)
 	}
 	return nil
 }

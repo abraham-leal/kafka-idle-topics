@@ -1,0 +1,87 @@
+= kafka-idle-topics
+
+Tooling to find topics that are not utilized in your Kafka cluster.
+
+Ensure efficient usage of your topics in https://www.confluent.io/confluent-cloud/[Confluent Cloud] by discovering topics that aren't being used.
+
+`kafka-idle-topics` evaluates an idle topic through these criteria:
+
+- It has no Consumer Groups (including inactive consumer groups that have offsets committed).
+- It has no active production during the time of assessment (30 seconds while running by default).
+- It has no data within its partitions.
+
+To download, go to `Run` for different ways of usage. It is also possible to download a release.
+Releases are tagged by branch hash. This project does not follow versioning as it is very small.
+
+== Usage
+
+[source,bash]
+----
+Usage of ./idleTopicChecker:
+  -bootstrap-servers string
+    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma (default "localhost:9092")
+  -filename string
+    	Custom filename for the output if needed. (default "idleTopics.txt")
+  -kafkaSecurity string
+    	Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none. (default "plain_tls")
+  -password string
+    	Password in the PLAIN module
+  -productionAssessmentTimeMs int
+    	Timeframe to assess active production (default 30000)
+  -username string
+    	Username in the PLAIN module
+----
+
+== Security
+
+`kafka-idle-topics` supports the following security set-ups:
+
+- `plain_tls`: SASL_SSL w/ PLAIN (Default)
+- `plain`: SASL_PLAINTEXT w/ PLAIN (No TLS)
+- `tls`: SSL (One-way TLS)
+- `none`: PLAINTEXT
+
+To add certificates the tool can trust for TLS connections, ensure they are located in the subdirectories go seeks.
+Commonly it is `/etc/ssl/certs/`.
+
+== Run
+
+You can run `kafka-idle-topics` in multiple configurations:
+
+=== Docker
+
+Example with Confluent Cloud:
+
+[source,bash]
+----
+docker run \
+  -e KAFKA_BOOTSTRAP=<<BOOTSTRAP-SERVERS>>\
+  -e KAFKA_USERNAME=<<API-KEY>>\
+  -e KAFKA_PASSWORD=<<API-SECRET>>\
+  abrahamleal/kafka-idle-topics:latest
+----
+
+=== Locally
+
+Downloading with Go, example with Confluent Cloud:
+
+[source,bash]
+----
+go get github.com/abraham-leal/kafka-idle-topics/cmd/idleTopicChecker
+go install github.com/abraham-leal/kafka-idle-topics/cmd/idleTopicChecker
+$GOPATH/bin/idleTopicChecker -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+----
+
+=== Build From Source
+
+Git clone, example with Confluent Cloud:
+
+[source,bash]
+----
+git clone https://github.com/abraham-leal/kafka-idle-topics
+cd kafka-idle-topics/
+go build ./cmd/idleTopicChecker/idleTopicChecker.go
+./idleTopicChecker -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+----
+
+

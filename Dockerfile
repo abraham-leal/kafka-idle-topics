@@ -6,4 +6,4 @@ RUN GOOS=linux go build ./cmd/idleTopicChecker/idleTopicChecker.go
 FROM scratch
 COPY --from=builder /app/idleTopicChecker /
 ADD cmd/trustedEntities /etc/ssl/certs/
-ENTRYPOINT ["/idleTopicChecker", "-bootstrap-servers", "$KAFKA_BOOTSRAP", "-username", "$KAFKA_USERNAME","-password", "$KAFKA_PASSWORD"]
+ENTRYPOINT ["/idleTopicChecker", "-bootstrap-servers", "$KAFKA_BOOTSTRAP", "-username", "$KAFKA_USERNAME","-password", "$KAFKA_PASSWORD"]

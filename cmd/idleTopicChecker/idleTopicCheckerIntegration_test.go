@@ -123,16 +123,25 @@ func createTopicHelper (topicName string) {
 		ReplicaAssignment: nil,
 		ConfigEntries:     nil,
 	}
-	adminClient.CreateTopic(topicName,&thisTopicDetail, false)
+	err := adminClient.CreateTopic(topicName,&thisTopicDetail, false)
+	if err != nil {
+		log.Printf("Could not create topic: %v", err)
+	}
 	log.Printf("Created Topic: %s", topicName)
 }
 
 func deleteTopicHelper (topicName string) {
-	adminClient.DeleteTopic(topicName)
+	err := adminClient.DeleteTopic(topicName)
+	if err != nil {
+		log.Printf("Could not delete topic: %v", err)
+	}
 }
 
 func deleteConsumerGroupHelper (groupName string) {
-	adminClient.DeleteConsumerGroup(groupName)
+	err := adminClient.DeleteConsumerGroup(groupName)
+	if err != nil {
+		log.Printf("Could not delete consumer group: %v", err)
+	}
 }
 
 func consumerGroupTopicHelper (topicName string, cgName string) {

@@ -105,6 +105,7 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 
 	StopProduction = true
 	StopConsumption = true
+	time.Sleep(time.Duration(100) * time.Millisecond)
 
 	assert.Equal(t, expectedTopicResult, result)
 

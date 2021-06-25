@@ -163,11 +163,9 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 		if err != nil {
 			log.Fatalf("Cannot determine if topic is in use by consumers.")
 		}
-		log.Printf("Result: %v", result.Blocks)
 
 		for topic, partitionData := range result.Blocks {
-			for p, dataset := range partitionData {
-				log.Printf("Looking at topic: %s, partition %v, offset is equal to %v", topic, p, dataset)
+			for _, dataset := range partitionData {
 				if dataset.Offset != -1 {
 					delete(topics, topic)
 					break

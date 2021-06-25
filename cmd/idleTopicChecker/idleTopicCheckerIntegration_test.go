@@ -135,6 +135,16 @@ func deleteTopicHelper (topicName string) {
 	if err != nil {
 		log.Printf("Could not delete topic: %v", err)
 	}
+	log.Printf("Deleted Topic: %s", topicName)
+	for {
+		topics, err := clusterClient.Topics()
+		if err != nil {
+			log.Printf("Cannot list topics: %v", topics)
+		}
+		if  isInSlice(topicName, topics) != true {
+			break
+		}
+	}
 }
 
 func deleteConsumerGroupHelper (groupName string) {
@@ -142,6 +152,8 @@ func deleteConsumerGroupHelper (groupName string) {
 	if err != nil {
 		log.Printf("Could not delete consumer group: %v", err)
 	}
+	log.Printf("Deleted Consumer Group: %s", groupName)
+
 }
 
 func consumerGroupTopicHelper (topicName string, cgName string) {
@@ -202,6 +214,15 @@ func produceTopicHelper (topicName string) {
 		producer.SendMessage(&message)
 	}
 
+}
+
+func isInSlice(i string, list []string) bool {
+	for _, current := range list {
+		if current == i {
+			return true
+		}
+	}
+	return false
 }
 
 

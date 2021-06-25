@@ -136,10 +136,6 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 		endTopicInspection[t] = thisTopicCounts
 	}
 
-	log.Printf("Initial Counts: %v", beginTopicInspection)
-	log.Printf("Final Counts: %v", endTopicInspection)
-
-
 	for topic, partitionOffset := range endTopicInspection {
 		if !reflect.DeepEqual(beginTopicInspection[topic], partitionOffset) {
 			delete(topicMetadata, topic)
@@ -161,6 +157,8 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 	if err != nil {
 		log.Fatalf("Could not obtain Consumer Groups from cluster: %v", err)
 	}
+	log.Printf("consumer groups: %v", allConsumerGroups)
+
 	for cg := range allConsumerGroups {
 		result, err := adminClient.ListConsumerGroupOffsets(cg, topics)
 		if err != nil {

@@ -1,6 +1,7 @@
 FROM golang:1.15.8 as builder
 COPY cmd /app
 WORKDIR /app
+RUN go get github.com/Shopify/sarama
 RUN GOOS=linux go build ./cmd/idleTopicChecker/idleTopicChecker.go
 
 FROM scratch

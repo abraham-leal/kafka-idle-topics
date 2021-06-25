@@ -173,11 +173,14 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 	}()
 	<-consumer.ready
 
-	if StopConsumption == true {
-		cancel()
-		wg.Wait()
-		consumerGroup.Close()
+	for {
+		if StopConsumption == true {
+			return
+		}
 	}
+	cancel()
+	wg.Wait()
+	consumerGroup.Close()
 }
 
 func produceTopicHelper (topicName string) {
@@ -189,6 +192,7 @@ func produceTopicHelper (topicName string) {
 	for {
 		if StopProduction == true {
 			producer.Close()
+			log.Printf("Ending producer")
 			StopProduction = false
 			return
 		}

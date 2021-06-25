@@ -49,7 +49,7 @@ func TestFilterNoStorageTopics (t *testing.T) {
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	time.Sleep(time.Duration(5) * time.Second)
+	time.Sleep(time.Duration(50) * time.Millisecond)
 	StopProduction = true
 
 	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
@@ -192,13 +192,13 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 
 func produceTopicHelper (topicName string) {
 	producer, err := sarama.NewSyncProducerFromClient(clusterClient)
-	defer producer.Close()
 	if err != nil {
 		log.Fatalf("Could not produce to test cluster: %v", err)
 	}
 
 	for {
 		if StopProduction == true {
+			producer.Close()
 			return
 		}
 		message := sarama.ProducerMessage{

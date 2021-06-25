@@ -136,6 +136,10 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 		endTopicInspection[t] = thisTopicCounts
 	}
 
+	log.Printf("Initial Counts: %v", beginTopicInspection)
+	log.Printf("Final Counts: %v", endTopicInspection)
+
+
 	for topic, partitionOffset := range endTopicInspection {
 		if !reflect.DeepEqual(beginTopicInspection[topic], partitionOffset) {
 			delete(topicMetadata, topic)

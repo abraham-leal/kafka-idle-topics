@@ -135,9 +135,9 @@ func deleteTopicHelper (topicName string) {
 	if err != nil {
 		log.Printf("Could not delete topic: %v", err)
 	}
+	time.Sleep(time.Duration(5) * time.Second)
 	for {
 		topics, err := clusterClient.Topics()
-		log.Printf("current topics in cluster: %v", topics)
 		if err != nil {
 			log.Printf("Cannot list topics: %v", topics)
 		}

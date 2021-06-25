@@ -94,7 +94,7 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	consumerGroupTopicHelper(topicA, "testingCG")
+	go consumerGroupTopicHelper(topicA, "testingCG")
 
 	time.Sleep(time.Duration(150) * time.Millisecond)
 
@@ -191,13 +191,10 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 }
 
 func produceTopicHelper (topicName string) {
-	log.Printf("In producer helper")
-
 	producer, err := sarama.NewSyncProducerFromClient(clusterClient)
 	if err != nil {
 		log.Fatalf("Could not produce to test cluster: %v", err)
 	}
-	log.Printf("Started producer helper")
 
 	for {
 		if StopProduction == true {

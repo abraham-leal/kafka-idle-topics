@@ -1,4 +1,4 @@
-module idleTopicChecker
+module github.com/abraham-leal/kafka-idle-topics
 
 go 1.15
 

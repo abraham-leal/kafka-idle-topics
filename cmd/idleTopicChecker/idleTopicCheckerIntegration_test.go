@@ -74,9 +74,10 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 	presentTopics := getClusterTopics(adminClient)
-	for t,_ := range presentTopics {
-		if t != topicA || t!= topicB {
-			delete(presentTopics,t)
+	log.Printf("present topics: %v", presentTopics)
+	for pt,_ := range presentTopics {
+		if pt != topicA || pt != topicB {
+			delete(presentTopics,pt)
 		}
 	}
 

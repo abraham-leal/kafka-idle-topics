@@ -10,8 +10,8 @@ services:
 script:
   - docker pull confluentinc/cp-zookeeper:6.1.0
   - docker pull confluentinc/cp-server:6.1.0
-  - go build cmd/idleTopicChecker.go
-  - cd cmd/
+  - go build cmd/idleTopicChecker/idleTopicChecker.go
+  - cd cmd/idleTopicChecker/
   - docker-compose up -d
   - go test
 

@@ -157,13 +157,13 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 	if err != nil {
 		log.Fatalf("Could not obtain Consumer Groups from cluster: %v", err)
 	}
-	log.Printf("consumer groups: %v", allConsumerGroups)
 
 	for cg := range allConsumerGroups {
 		result, err := adminClient.ListConsumerGroupOffsets(cg, topics)
 		if err != nil {
 			log.Fatalf("Cannot determine if topic is in use by consumers.")
 		}
+		log.Printf("Result: %v", result.Blocks)
 
 		for topic, partitionData := range result.Blocks {
 			seen := false

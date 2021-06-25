@@ -88,4 +88,10 @@ go build ./cmd/idleTopicChecker/idleTopicChecker.go
 ./idleTopicChecker -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
 ----
 
+== Feature Requests / Issue Reporting
 
+This repo tracks feature requests and issues through Github Issues.
+If you'd like to see something fixed that was not caught by testing, or you'd like to see a new feature, please feel free
+to file a Github issue in this repo, I'll review and answer at best effort.
+
+Additionally, if you'd like to contribute a fix/feature, please feel free to open a PR for review.

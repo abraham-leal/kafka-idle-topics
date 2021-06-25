@@ -147,7 +147,6 @@ func deleteTopicHelper (topicName string) {
 }
 
 func consumerGroupTopicHelper (topicName string, cgName string) {
-	log.Printf("In consumer group helper")
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
@@ -174,10 +173,7 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 	}()
 	<-consumer.ready
 
-	log.Printf("Consumer should be consuming")
-
 	if StopConsumption == true {
-		log.Printf("consumer is dying")
 		cancel()
 		wg.Wait()
 		consumerGroup.Close()

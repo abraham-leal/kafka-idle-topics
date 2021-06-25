@@ -202,6 +202,7 @@ func produceTopicHelper (topicName string) {
 	for {
 		if StopProduction == true {
 			producer.Close()
+			StopProduction = false
 			return
 		}
 		message := sarama.ProducerMessage{

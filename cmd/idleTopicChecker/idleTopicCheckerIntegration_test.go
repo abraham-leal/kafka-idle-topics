@@ -71,7 +71,7 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	time.Sleep(time.Duration(10) * time.Second)
+	time.Sleep(time.Duration(150) * time.Millisecond)
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 	presentTopics := getClusterTopics(adminClient)
@@ -96,7 +96,7 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 	go produceTopicHelper(topicA)
 	consumerGroupTopicHelper(topicA, "testingCG")
 
-	time.Sleep(time.Duration(10) * time.Second)
+	time.Sleep(time.Duration(150) * time.Millisecond)
 
 	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
 	expectedTopicResult := map[string][]int32{topicB: {0}}

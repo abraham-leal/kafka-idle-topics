@@ -219,7 +219,6 @@ func produceTopicHelper (topicName string) {
 		if err != nil {
 			log.Printf("Cannot produce to cluster: %v", err)
 		}
-		log.Printf("Produced to partition %v and offset %v", p, o)
 	}
 
 }

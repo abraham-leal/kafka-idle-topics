@@ -15,8 +15,8 @@ import (
 var composeEnv *testcontainers.LocalDockerCompose
 var adminClient sarama.ClusterAdmin
 var clusterClient sarama.Client
-var StopProduction bool
-var StopConsumption bool
+var StopProduction = false
+var StopConsumption = false
 var topicA = "hasThings"
 var topicB = "doesNotHaveThings"
 
@@ -110,7 +110,6 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
-	deleteConsumerGroupHelper("testingCg")
 }
 
 func createTopicHelper (topicName string) {
@@ -147,15 +146,6 @@ func deleteTopicHelper (topicName string) {
 	log.Printf("Deleted Topic: %s", topicName)
 }
 
-func deleteConsumerGroupHelper (groupName string) {
-	err := adminClient.DeleteConsumerGroup(groupName)
-	if err != nil {
-		log.Printf("Could not delete consumer group: %v", err)
-	}
-	log.Printf("Deleted Consumer Group: %s", groupName)
-
-}
-
 func consumerGroupTopicHelper (topicName string, cgName string) {
 	log.Printf("In consumer group helper")
 	consumer := Consumer{
@@ -184,7 +174,10 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 	}()
 	<-consumer.ready
 
+	log.Printf("Consumer should be consuming")
+
 	if StopConsumption == true {
+		log.Printf("consumer is dying")
 		cancel()
 		wg.Wait()
 		consumerGroup.Close()

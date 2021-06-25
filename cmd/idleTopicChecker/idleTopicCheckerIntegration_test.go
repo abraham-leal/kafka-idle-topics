@@ -96,7 +96,7 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 	go produceTopicHelper(topicA)
 	go consumerGroupTopicHelper(topicA, "testingCG")
 
-	time.Sleep(time.Duration(150) * time.Millisecond)
+	time.Sleep(time.Duration(300) * time.Millisecond)
 
 	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
 	expectedTopicResult := map[string][]int32{topicB: {0}}

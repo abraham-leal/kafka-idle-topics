@@ -32,6 +32,7 @@ func setup() {
 	composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
 	time.Sleep(time.Duration(10) * time.Second) // give services time to set up
 
+	kafkaUrl = "localhost:9092"
 	productionAssessmentTime = 30000
 	adminClient = getAdminClient("none")
 	clusterClient = getClusterClient("none")

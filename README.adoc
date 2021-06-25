@@ -13,6 +13,8 @@ Ensure efficient usage of your topics in https://www.confluent.io/confluent-clou
 To download, go to `Run` for different ways of usage. It is also possible to download a release.
 Releases are tagged by branch hash. This project does not follow versioning as it is very small.
 
+The output will be written to a file in the same directory. The name of this file is configurable.
+
 == Usage
 
 [source,bash]

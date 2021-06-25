@@ -1,4 +1,4 @@
-module idleTopicChecked
+module idleTopicChecker
 
 go 1.15
 

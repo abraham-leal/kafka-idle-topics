@@ -175,12 +175,16 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 
 	for {
 		if StopConsumption == true {
-			return
+			log.Println("Ending consumer")
+			break
 		}
 	}
 	cancel()
 	wg.Wait()
-	consumerGroup.Close()
+	err = consumerGroup.Close()
+	if err != nil {
+		log.Printf("Could not end consumer group: %v", err)
+	}
 }
 
 func produceTopicHelper (topicName string) {

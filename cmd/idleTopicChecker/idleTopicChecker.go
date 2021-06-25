@@ -166,19 +166,12 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 		log.Printf("Result: %v", result.Blocks)
 
 		for topic, partitionData := range result.Blocks {
-			seen := false
-			for _, dataset := range partitionData {
+			for p, dataset := range partitionData {
+				log.Printf("Looking at topic: %s, partition %v, offset is equal to %v", topic, p, dataset)
 				if dataset.Offset != -1 {
 					delete(topics, topic)
-					seen = true
-					continue
+					break
 				}
-				if seen == true {
-					continue
-				}
-			}
-			if seen == true {
-				continue
 			}
 		}
 	}

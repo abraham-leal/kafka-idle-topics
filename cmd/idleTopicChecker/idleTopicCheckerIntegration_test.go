@@ -49,7 +49,7 @@ func TestFilterNoStorageTopics (t *testing.T) {
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	time.Sleep(time.Duration(50) * time.Millisecond)
+	time.Sleep(time.Duration(150) * time.Millisecond)
 	StopProduction = true
 
 	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
@@ -191,10 +191,13 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 }
 
 func produceTopicHelper (topicName string) {
+	log.Printf("In producer helper")
+
 	producer, err := sarama.NewSyncProducerFromClient(clusterClient)
 	if err != nil {
 		log.Fatalf("Could not produce to test cluster: %v", err)
 	}
+	log.Printf("Started producer helper")
 
 	for {
 		if StopProduction == true {
@@ -219,16 +222,6 @@ func produceTopicHelper (topicName string) {
 	}
 
 }
-
-func isInSlice(i string, list []string) bool {
-	for _, current := range list {
-		if current == i {
-			return true
-		}
-	}
-	return false
-}
-
 
 // Sample consumer to use for testing purposes
 type Consumer struct {

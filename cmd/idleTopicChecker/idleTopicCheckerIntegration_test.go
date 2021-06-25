@@ -231,7 +231,6 @@ func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
 func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
 		session.MarkMessage(message, "")
-		log.Printf("Message: %v", message)
 	}
 	return nil
 }

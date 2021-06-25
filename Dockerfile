@@ -1,9 +1,9 @@
 FROM golang:1.15.8 as builder
 COPY . /app
 WORKDIR /app
-RUN GOOS=linux go build ./cmd/idleTopicChecker/idleTopicChecker.go
+RUN GOOS=linux go build ./cmd/kafka-idle-topics/kafka-idle-topics.go
 
 FROM scratch
-COPY --from=builder /app/idleTopicChecker /
+COPY --from=builder /app/kafka-idle-topics /
 ADD cmd/trustedEntities /etc/ssl/certs/
-ENTRYPOINT /idleTopicChecker -bootstrap-servers $KAFKA_BOOTSTRAP -username $KAFKA_USERNAME -password $KAFKA_PASSWORD
+ENTRYPOINT /kafka-idle-topics -bootstrap-servers $KAFKA_BOOTSTRAP -username $KAFKA_USERNAME -password $KAFKA_PASSWORD

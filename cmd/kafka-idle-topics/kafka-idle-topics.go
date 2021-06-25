@@ -197,7 +197,7 @@ func getClusterClient(securityContext string) sarama.Client {
 
 func generateClientConfigs(securityContext string) *sarama.Config {
 	clientConfigs := sarama.NewConfig()
-	clientConfigs.ClientID = "idleTopicChecker"
+	clientConfigs.ClientID = "kafka-idle-topics"
 	clientConfigs.Producer.Return.Successes = true
 	clientConfigs.Consumer.Return.Errors = true
 	clientConfigs.Consumer.Offsets.AutoCommit.Enable = true

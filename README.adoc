@@ -21,7 +21,7 @@ The output will be written to a file in the same directory. The name of this fil
 
 [source,bash]
 ----
-Usage of ./idleTopicChecker:
+Usage of ./kafka-idle-topics:
   -bootstrap-servers string
     	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma (default "localhost:9092")
   -filename string
@@ -71,9 +71,9 @@ Downloading with Go, example with Confluent Cloud:
 
 [source,bash]
 ----
-go get github.com/abraham-leal/kafka-idle-topics/cmd/idleTopicChecker
-go install github.com/abraham-leal/kafka-idle-topics/cmd/idleTopicChecker
-$GOPATH/bin/idleTopicChecker -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+go get github.com/abraham-leal/kafka-idle-topics/cmd/kafka-idle-topics
+go install github.com/abraham-leal/kafka-idle-topics/cmd/kafka-idle-topics
+$GOPATH/bin/kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
 ----
 
 === Build From Source
@@ -84,8 +84,8 @@ Git clone, example with Confluent Cloud:
 ----
 git clone https://github.com/abraham-leal/kafka-idle-topics
 cd kafka-idle-topics/
-go build ./cmd/idleTopicChecker/idleTopicChecker.go
-./idleTopicChecker -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+go build ./cmd/kafka-idle-topics/kafka-idle-topics.go
+./kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
 ----
 
 == Feature Requests / Issue Reporting

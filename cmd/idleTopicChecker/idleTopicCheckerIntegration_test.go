@@ -59,6 +59,7 @@ func TestFilterNoStorageTopics (t *testing.T) {
 
 	assert.Equal(t, expectedTopicResult, actualResult)
 
+	log.Printf("Finished Assessment for no storage, cleaning up...")
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
@@ -136,6 +137,7 @@ func deleteTopicHelper (topicName string) {
 		log.Printf("Could not delete topic: %v", err)
 	}
 	time.Sleep(time.Duration(5) * time.Second)
+
 	for {
 		topics, err := clusterClient.Topics()
 		if err != nil {

@@ -211,7 +211,10 @@ func produceTopicHelper (topicName string) {
 			Partition: 0,
 			Timestamp: time.Time{},
 		}
-		producer.SendMessage(&message)
+		_, _, err := producer.SendMessage(&message)
+		if err != nil {
+			log.Printf("Cannot produce to cluster: %v", err)
+		}
 	}
 
 }

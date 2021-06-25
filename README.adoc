@@ -1,5 +1,7 @@
 = kafka-idle-topics
 
+image:https://travis-ci.com/abraham-leal/kafka-idle-topics.svg?branch=main["Build Status", link="https://travis-ci.com/abraham-leal/kafka-idle-topics"]
+
 Tooling to find topics that are not utilized in your Kafka cluster.
 
 Ensure efficient usage of your topics in https://www.confluent.io/confluent-cloud/[Confluent Cloud] by discovering topics that aren't being used.

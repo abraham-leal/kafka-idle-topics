@@ -73,8 +73,14 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 	time.Sleep(time.Duration(5) * time.Second)
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
+	presentTopics := getClusterTopics(adminClient)
+	for t,_ := range presentTopics {
+		if t != topicA || t!= topicB {
+			delete(presentTopics,t)
+		}
+	}
 
-	_, result := filterActiveProductionTopics(getClusterTopics(adminClient), clusterClient)
+	_, result := filterActiveProductionTopics(presentTopics, clusterClient)
 
 	StopProduction = true
 

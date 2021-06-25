@@ -139,11 +139,12 @@ func deleteTopicHelper (topicName string) {
 	time.Sleep(time.Duration(5) * time.Second)
 
 	for {
-		topics, err := clusterClient.Topics()
+		topics, err := adminClient.ListTopics()
 		if err != nil {
 			log.Printf("Cannot list topics: %v", topics)
 		}
-		if !isInSlice(topicName, topics) {
+		_, exists := topics[topicName]
+		if !exists {
 			break
 		}
 	}

@@ -75,12 +75,8 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 	presentTopics := getClusterTopics(adminClient)
-	log.Printf("present topics: %v", presentTopics)
-	for pt,_ := range presentTopics {
-		if pt != topicA || pt != topicB {
-			delete(presentTopics,pt)
-		}
-	}
+	// Delete a pre-set topic
+	delete (presentTopics, "_confluent-license")
 
 	_, result := filterActiveProductionTopics(presentTopics, clusterClient)
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -34,9 +35,9 @@ func main() {
 
 	// If the parameters are empty, go fetch from env
 	if kafkaUrl == "" || kafkaUsername == "" || kafkaPassword == "" {
-		kafkaUrl = GetBootstrapServers()
-		kafkaUsername = GetKafkaUsername()
-		kafkaPassword = GetKafkaPassword()
+		kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
+		kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
+		kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
 	}
 
 	adminClient := getAdminClient(kafkaSecurity)
@@ -114,7 +115,7 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 
 	beginTopicInspection := map[string]map[int64]int64{}
 
-	for t, _ := range topicMetadata {
+	for t := range topicMetadata {
 		thisTopicCounts := map[int64]int64{}
 		for _, partition := range topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
@@ -132,7 +133,7 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 
 	endTopicInspection := map[string]map[int64]int64{}
 
-	for t, _ := range topicMetadata {
+	for t := range topicMetadata {
 		thisTopicCounts := map[int64]int64{}
 		for _, partition := range topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
@@ -235,7 +236,7 @@ func writeTopicsLocally(topics map[string][]int32) string {
 	}
 	defer file.Close()
 
-	for topic, _ := range topics {
+	for topic := range topics {
 		_, err := file.WriteString(topic)
 		if err != nil {
 			log.Printf("WARN: Could not write this topic to file: %s", topic)
@@ -247,6 +248,15 @@ func writeTopicsLocally(topics map[string][]int32) string {
 	}
 	file.Sync()
 	return file.Name()
+}
+
+func GetOSEnvVar(env_var string) string {
+	key, present := os.LookupEnv(env_var)
+	if present && key != "" {
+		return key
+	}
+
+	panic(errors.New("Environment variable has not been specified: " + env_var))
 }
 
 func makeRange(min int32, max int32) []int32 {

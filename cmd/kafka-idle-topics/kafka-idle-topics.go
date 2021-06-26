@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/Shopify/sarama"
 	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/Shopify/sarama"
 )
 
 var kafkaUrl string
@@ -19,10 +20,10 @@ var fileName string
 var productionAssessmentTime int
 
 func GetFlags() {
-	flag.StringVar(&kafkaUrl, "bootstrap-servers", "localhost:9092", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma")
+	flag.StringVar(&kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma")
 	flag.StringVar(&kafkaUsername, "username", "", "Username in the PLAIN module")
 	flag.StringVar(&kafkaPassword, "password", "", "Password in the PLAIN module")
-	flag.StringVar(&kafkaPassword, "kafkaSecurity", "plain_tls", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
+	flag.StringVar(&kafkaSecurity, "kafkaSecurity", "plain_tls", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
 	flag.StringVar(&fileName, "filename", "idleTopics.txt", "Custom filename for the output if needed.")
 	flag.IntVar(&productionAssessmentTime, "productionAssessmentTimeMs", 30000, "Timeframe to assess active production")
 	flag.Parse()
@@ -31,15 +32,22 @@ func GetFlags() {
 func main() {
 	GetFlags()
 
-	adminClient := getAdminClient("plain_tls")
-	clusterClient := getClusterClient("plain_tls")
+	// If the parameters are empty, go fetch from env
+	if kafkaUrl == "" || kafkaUsername == "" || kafkaPassword == "" {
+		kafkaUrl = GetBootstrapServers()
+		kafkaUsername = GetKafkaUsername()
+		kafkaPassword = GetKafkaPassword()
+	}
+
+	adminClient := getAdminClient(kafkaSecurity)
+	clusterClient := getClusterClient(kafkaSecurity)
 	defer adminClient.Close()
 	defer clusterClient.Close()
 
 	// Extract Topics in Cluster
 	clusterTopics := getClusterTopics(adminClient)
 
-	clusterTopics, topicPartitionMap := filterActiveProductionTopics(clusterTopics, clusterClient)
+	_, topicPartitionMap := filterActiveProductionTopics(clusterTopics, clusterClient)
 
 	topicPartitionMap = filterTopicsWithConsumerGroups(topicPartitionMap, adminClient)
 
@@ -101,7 +109,7 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 
 	topicPartitionMap := map[string][]int32{}
 	for t, td := range topicMetadata {
-		topicPartitionMap[t] = makeRange(0,td.NumPartitions-1)
+		topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
 	}
 
 	beginTopicInspection := map[string]map[int64]int64{}
@@ -178,7 +186,7 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 }
 
 func getAdminClient(securityContext string) sarama.ClusterAdmin {
-	adminClient, err := sarama.NewClusterAdmin(strings.Split(kafkaUrl,","), generateClientConfigs(securityContext))
+	adminClient, err := sarama.NewClusterAdmin(strings.Split(kafkaUrl, ","), generateClientConfigs(securityContext))
 	if err != nil {
 		log.Fatalf("Unable to create Kafka Client: %v", err)
 	}
@@ -186,7 +194,7 @@ func getAdminClient(securityContext string) sarama.ClusterAdmin {
 }
 
 func getClusterClient(securityContext string) sarama.Client {
-	clusterClient, err := sarama.NewClient(strings.Split(kafkaUrl,","), generateClientConfigs(securityContext))
+	clusterClient, err := sarama.NewClient(strings.Split(kafkaUrl, ","), generateClientConfigs(securityContext))
 	if err != nil {
 		log.Fatalf("Unable to create Kafka Client: %v", err)
 	}
@@ -215,7 +223,7 @@ func generateClientConfigs(securityContext string) *sarama.Config {
 	return clientConfigs
 }
 
-func writeTopicsLocally (topics map[string][]int32) string {
+func writeTopicsLocally(topics map[string][]int32) string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Could not write results due to: %v", err)
@@ -241,7 +249,7 @@ func writeTopicsLocally (topics map[string][]int32) string {
 	return file.Name()
 }
 
-func makeRange(min int32 , max int32) []int32 {
+func makeRange(min int32, max int32) []int32 {
 	a := make([]int32, max-min+1)
 	for i := range a {
 		a[i] = min + int32(i)

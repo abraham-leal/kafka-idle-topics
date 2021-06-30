@@ -23,15 +23,19 @@ The output will be written to a file in the same directory. The name of this fil
 ----
 Usage of ./kafka-idle-topics:
   -bootstrap-servers string
-    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma (default "localhost:9092")
+    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma
   -filename string
     	Custom filename for the output if needed. (default "idleTopics.txt")
+  -hideInternalTopics
+    	Hide internal topics from assessment.
   -kafkaSecurity string
-    	Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none. (default "plain_tls")
+    	Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none. (default "none")
   -password string
     	Password in the PLAIN module
   -productionAssessmentTimeMs int
     	Timeframe to assess active production (default 30000)
+  -skip string
+    	Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.
   -username string
     	Username in the PLAIN module
 ----
@@ -40,10 +44,10 @@ Usage of ./kafka-idle-topics:
 
 `kafka-idle-topics` supports the following security set-ups:
 
-- `plain_tls`: SASL_SSL w/ PLAIN (Default)
+- `plain_tls`: SASL_SSL w/ PLAIN  
 - `plain`: SASL_PLAINTEXT w/ PLAIN (No TLS)
 - `tls`: SSL (One-way TLS)
-- `none`: PLAINTEXT
+- `none`: PLAINTEXT (Default)  
 
 To add certificates the tool can trust for TLS connections, ensure they are located in the subdirectories go seeks.
 Commonly it is `/etc/ssl/certs/`.
@@ -62,7 +66,7 @@ docker run \
   -e KAFKA_BOOTSTRAP=<<BOOTSTRAP-SERVERS>>\
   -e KAFKA_USERNAME=<<API-KEY>>\
   -e KAFKA_PASSWORD=<<API-SECRET>>\
-  abrahamleal/kafka-idle-topics:latest
+  abrahamleal/kafka-idle-topics:latest 
 ----
 
 === Locally
@@ -73,7 +77,7 @@ Downloading with Go, example with Confluent Cloud:
 ----
 go get github.com/abraham-leal/kafka-idle-topics/cmd/kafka-idle-topics
 go install github.com/abraham-leal/kafka-idle-topics/cmd/kafka-idle-topics
-$GOPATH/bin/kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+$GOPATH/bin/kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>> -kafkaSecurity plain_tls
 ----
 
 === Build From Source
@@ -85,7 +89,7 @@ Git clone, example with Confluent Cloud:
 git clone https://github.com/abraham-leal/kafka-idle-topics
 cd kafka-idle-topics/
 go build ./cmd/kafka-idle-topics/kafka-idle-topics.go
-./kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>>
+./kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>> -kafkaSecurity plain_tls
 ----
 
 == Feature Requests / Issue Reporting

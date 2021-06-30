@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/Shopify/sarama"
-	"github.com/stretchr/testify/assert"
-	"github.com/testcontainers/testcontainers-go"
 	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 var composeEnv *testcontainers.LocalDockerCompose
@@ -38,12 +39,12 @@ func setup() {
 	clusterClient = getClusterClient("none")
 }
 
-func teardown () {
+func teardown() {
 	adminClient.Close()
 	clusterClient.Close()
 }
 
-func TestFilterNoStorageTopics (t *testing.T) {
+func TestFilterNoStorageTopics(t *testing.T) {
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -64,8 +65,7 @@ func TestFilterNoStorageTopics (t *testing.T) {
 	deleteTopicHelper(topicB)
 }
 
-
-func TestFilterActiveProducerTopics (t *testing.T) {
+func TestFilterActiveProducerTopics(t *testing.T) {
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -76,9 +76,9 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 	presentTopics := getClusterTopics(adminClient)
 	// Delete a pre-set topic
-	delete (presentTopics, "_confluent-license")
+	delete(presentTopics, "_confluent-license")
 
-	_, result := filterActiveProductionTopics(presentTopics, clusterClient)
+	result := filterActiveProductionTopics(presentTopics, clusterClient)
 
 	StopProduction = true
 
@@ -88,7 +88,7 @@ func TestFilterActiveProducerTopics (t *testing.T) {
 	deleteTopicHelper(topicB)
 }
 
-func TestFilterActiveConsumerGroupTopics (t *testing.T) {
+func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -113,21 +113,21 @@ func TestFilterActiveConsumerGroupTopics (t *testing.T) {
 	deleteTopicHelper(topicB)
 }
 
-func createTopicHelper (topicName string) {
+func createTopicHelper(topicName string) {
 	thisTopicDetail := sarama.TopicDetail{
 		NumPartitions:     1,
 		ReplicationFactor: 1,
 		ReplicaAssignment: nil,
 		ConfigEntries:     nil,
 	}
-	err := adminClient.CreateTopic(topicName,&thisTopicDetail, false)
+	err := adminClient.CreateTopic(topicName, &thisTopicDetail, false)
 	if err != nil {
 		log.Printf("Could not create topic: %v", err)
 	}
 	log.Printf("Created Topic: %s", topicName)
 }
 
-func deleteTopicHelper (topicName string) {
+func deleteTopicHelper(topicName string) {
 	err := adminClient.DeleteTopic(topicName)
 	if err != nil {
 		log.Printf("Could not delete topic: %v", err)
@@ -147,7 +147,7 @@ func deleteTopicHelper (topicName string) {
 	log.Printf("Deleted Topic: %s", topicName)
 }
 
-func consumerGroupTopicHelper (topicName string, cgName string) {
+func consumerGroupTopicHelper(topicName string, cgName string) {
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
@@ -188,7 +188,7 @@ func consumerGroupTopicHelper (topicName string, cgName string) {
 	}
 }
 
-func produceTopicHelper (topicName string) {
+func produceTopicHelper(topicName string) {
 	producer, err := sarama.NewSyncProducerFromClient(clusterClient)
 	if err != nil {
 		log.Fatalf("Could not produce to test cluster: %v", err)

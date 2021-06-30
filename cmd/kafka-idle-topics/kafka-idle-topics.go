@@ -18,26 +18,33 @@ var kafkaUsername string
 var kafkaPassword string
 var kafkaSecurity string
 var fileName string
+var skip string
 var productionAssessmentTime int
+var hideInternalTopics bool
 
 func GetFlags() {
 	flag.StringVar(&kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma")
 	flag.StringVar(&kafkaUsername, "username", "", "Username in the PLAIN module")
 	flag.StringVar(&kafkaPassword, "password", "", "Password in the PLAIN module")
-	flag.StringVar(&kafkaSecurity, "kafkaSecurity", "plain_tls", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
+	flag.StringVar(&kafkaSecurity, "kafkaSecurity", "none", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
 	flag.StringVar(&fileName, "filename", "idleTopics.txt", "Custom filename for the output if needed.")
+	flag.StringVar(&skip, "skip", "", "Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.")
 	flag.IntVar(&productionAssessmentTime, "productionAssessmentTimeMs", 30000, "Timeframe to assess active production")
+	flag.BoolVar(&hideInternalTopics, "hideInternalTopics", false, "Hide internal topics from assessment.")
+
 	flag.Parse()
 }
 
 func main() {
 	GetFlags()
 
-	// If the parameters are empty, go fetch from env
-	if kafkaUrl == "" || kafkaUsername == "" || kafkaPassword == "" {
-		kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
-		kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
-		kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
+	if kafkaSecurity == "plain_tls" || kafkaSecurity == "plain" {
+		// If the parameters are empty, go fetch from env
+		if kafkaUrl == "" || kafkaUsername == "" || kafkaPassword == "" {
+			kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
+			kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
+			kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
+		}
 	}
 
 	adminClient := getAdminClient(kafkaSecurity)
@@ -45,31 +52,58 @@ func main() {
 	defer adminClient.Close()
 	defer clusterClient.Close()
 
+	stepsToSkip := strings.Split(skip, ",")
+
 	// Extract Topics in Cluster
-	clusterTopics := getClusterTopics(adminClient)
+	topicPartitionMap := getClusterTopics(adminClient)
 
-	_, topicPartitionMap := filterActiveProductionTopics(clusterTopics, clusterClient)
+	if !isInSlice("production", stepsToSkip) {
+		topicPartitionMap = filterActiveProductionTopics(topicPartitionMap, clusterClient)
+	}
 
-	topicPartitionMap = filterTopicsWithConsumerGroups(topicPartitionMap, adminClient)
+	if !isInSlice("consumption", stepsToSkip) {
+		topicPartitionMap = filterTopicsWithConsumerGroups(topicPartitionMap, adminClient)
+	}
 
-	topicPartitionMap = filterEmptyTopics(topicPartitionMap, clusterClient)
+	if !isInSlice("storage", stepsToSkip) {
+		topicPartitionMap = filterEmptyTopics(topicPartitionMap, clusterClient)
+	}
+
+	if hideInternalTopics {
+		for t := range topicPartitionMap {
+			if strings.HasPrefix(t, "_") {
+				delete(topicPartitionMap, t)
+			}
+		}
+	}
 
 	path := writeTopicsLocally(topicPartitionMap)
 
-	log.Printf("Done! A list of found idle topics is available at: %s", path)
+	topicCount := len(topicPartitionMap)
+	partitionCount := 0
+	for _, ps := range topicPartitionMap {
+		partitionCount = partitionCount + len(ps)
+	}
 
+	log.Printf("Done! You can delete %v topics and %v partitions! A list of found idle topics is available at: %s", topicCount, partitionCount, path)
 }
 
 /*
 	Uses the provided Sarama Admin Client to get a list of current topics in the cluster
 */
-func getClusterTopics(adminClient sarama.ClusterAdmin) map[string]sarama.TopicDetail {
+func getClusterTopics(adminClient sarama.ClusterAdmin) map[string][]int32 {
 	log.Println("Loading Topics...")
 	topicMetadata, err := adminClient.ListTopics()
 	if err != nil {
 		log.Fatalf("Could not reach cluster within the last 30 seconds. Is the configuration correct? %v", err)
 	}
-	return topicMetadata
+
+	topicPartitionMap := map[string][]int32{}
+	for t, td := range topicMetadata {
+		topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
+	}
+
+	return topicPartitionMap
 }
 
 /*
@@ -105,17 +139,12 @@ func filterEmptyTopics(topicPartitionMap map[string][]int32, clusterClient saram
 	Returns and accepts a List of the form map[string]sarama.TopicDetail.
 	The returned list are topics that do not have active producers.
 */
-func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, clusterClient sarama.Client) (map[string]sarama.TopicDetail, map[string][]int32) {
+func filterActiveProductionTopics(topicPartitionMap map[string][]int32, clusterClient sarama.Client) map[string][]int32 {
 	log.Println("Evaluating Topics without any active production...")
-
-	topicPartitionMap := map[string][]int32{}
-	for t, td := range topicMetadata {
-		topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
-	}
 
 	beginTopicInspection := map[string]map[int64]int64{}
 
-	for t := range topicMetadata {
+	for t := range topicPartitionMap {
 		thisTopicCounts := map[int64]int64{}
 		for _, partition := range topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
@@ -133,7 +162,7 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 
 	endTopicInspection := map[string]map[int64]int64{}
 
-	for t := range topicMetadata {
+	for t := range topicPartitionMap {
 		thisTopicCounts := map[int64]int64{}
 		for _, partition := range topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
@@ -147,12 +176,11 @@ func filterActiveProductionTopics(topicMetadata map[string]sarama.TopicDetail, c
 
 	for topic, partitionOffset := range endTopicInspection {
 		if !reflect.DeepEqual(beginTopicInspection[topic], partitionOffset) {
-			delete(topicMetadata, topic)
 			delete(topicPartitionMap, topic)
 		}
 	}
 
-	return topicMetadata, topicPartitionMap
+	return topicPartitionMap
 }
 
 /*
@@ -257,6 +285,15 @@ func GetOSEnvVar(env_var string) string {
 	}
 
 	panic(errors.New("Environment variable has not been specified: " + env_var))
+}
+
+func isInSlice(i string, list []string) bool {
+	for _, current := range list {
+		if current == i {
+			return true
+		}
+	}
+	return false
 }
 
 func makeRange(min int32, max int32) []int32 {

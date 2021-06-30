@@ -6,4 +6,4 @@ RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/kafka-idle-topics/kafka-idle-topics.
 FROM scratch
 COPY --from=builder /app/kafka-idle-topics /
 ADD ./cmd/trustedEntities/LetsEncryptCA.pem /etc/ssl/certs/LetsEncryptCA.pem
-ENTRYPOINT ["/kafka-idle-topics"]
+ENTRYPOINT ["/kafka-idle-topics", "-kafkaSecurity plain_tls"]

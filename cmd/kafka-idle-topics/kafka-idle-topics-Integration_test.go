@@ -30,9 +30,9 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	composeEnv = testcontainers.NewLocalDockerCompose([]string{"docker-compose.yml"}, "kafka-idle-topics")
-	composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
-	time.Sleep(time.Duration(10) * time.Second) // give services time to set up
+	//composeEnv = testcontainers.NewLocalDockerCompose([]string{"docker-compose.yml"}, "kafka-idle-topics")
+	//composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
+	//time.Sleep(time.Duration(10) * time.Second) // give services time to set up
 
 	instanceOfChecker.kafkaUrl = "localhost:9092"
 	instanceOfChecker.productionAssessmentTime = 30000
@@ -56,9 +56,10 @@ func TestFilterNoStorageTopics(t *testing.T) {
 	StopProduction = true
 
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
-	expectedTopicResult := map[string][]int32{topicB: {0}}
+	expectedTopicResult := map[string]bool{topicB: true}
 
 	instanceOfChecker.filterEmptyTopics(clusterClient)
+	instanceOfChecker.filterOutDeleteCandidates()
 
 	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
@@ -76,12 +77,13 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 	go produceTopicHelper(topicA)
 	time.Sleep(time.Duration(150) * time.Millisecond)
 
-	expectedTopicResult := map[string][]int32{topicB: {0}}
-	instanceOfChecker.getClusterTopics(adminClient)
+	expectedTopicResult := map[string]bool{topicB: true}
+	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
 	// Delete a pre-set topic
 	delete(instanceOfChecker.topicPartitionMap, "_confluent-license")
 
 	instanceOfChecker.filterActiveProductionTopics(clusterClient)
+	instanceOfChecker.filterOutDeleteCandidates()
 
 	StopProduction = true
 
@@ -103,9 +105,10 @@ func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 	time.Sleep(time.Duration(10) * time.Second)
 
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
-	expectedTopicResult := map[string][]int32{topicB: {0}}
+	expectedTopicResult := map[string]bool{topicB: true}
 
 	instanceOfChecker.filterTopicsWithConsumerGroups(adminClient)
+	instanceOfChecker.filterOutDeleteCandidates()
 
 	StopProduction = true
 	StopConsumption = true
@@ -128,7 +131,7 @@ func TestCandidacyRemoval(t *testing.T) {
 	StopProduction = true
 
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
-	expectedTopicResult := map[string][]int32{}
+	expectedTopicResult := map[string]bool{}
 
 	// topicA is no longer empty, which means it is not a delete candidate
 	instanceOfChecker.filterEmptyTopics(clusterClient)
@@ -142,6 +145,8 @@ func TestCandidacyRemoval(t *testing.T) {
 
 	StopProduction = true
 	StopConsumption = true
+
+	instanceOfChecker.filterOutDeleteCandidates()
 
 	time.Sleep(time.Duration(100) * time.Millisecond)
 

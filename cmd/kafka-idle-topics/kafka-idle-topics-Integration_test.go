@@ -20,6 +20,7 @@ var StopProduction = false
 var StopConsumption = false
 var topicA = "hasThings"
 var topicB = "doesNotHaveThings"
+var instanceOfChecker = NewKafkaIdleTopics()
 
 func TestMain(m *testing.M) {
 	setup()
@@ -33,10 +34,10 @@ func setup() {
 	composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
 	time.Sleep(time.Duration(10) * time.Second) // give services time to set up
 
-	kafkaUrl = "localhost:9092"
-	productionAssessmentTime = 30000
-	adminClient = getAdminClient("none")
-	clusterClient = getClusterClient("none")
+	instanceOfChecker.kafkaUrl = "localhost:9092"
+	instanceOfChecker.productionAssessmentTime = 30000
+	adminClient = instanceOfChecker.getAdminClient("none")
+	clusterClient = instanceOfChecker.getClusterClient("none")
 }
 
 func teardown() {
@@ -45,6 +46,7 @@ func teardown() {
 }
 
 func TestFilterNoStorageTopics(t *testing.T) {
+	instanceOfChecker.DeleteCandidates = map[string]bool{}
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -53,12 +55,12 @@ func TestFilterNoStorageTopics(t *testing.T) {
 	time.Sleep(time.Duration(150) * time.Millisecond)
 	StopProduction = true
 
-	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
+	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 
-	actualResult := filterEmptyTopics(presentTopics, clusterClient)
+	instanceOfChecker.filterEmptyTopics(clusterClient)
 
-	assert.Equal(t, expectedTopicResult, actualResult)
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
 	log.Printf("Finished Assessment for no storage, cleaning up...")
 	deleteTopicHelper(topicA)
@@ -66,6 +68,7 @@ func TestFilterNoStorageTopics(t *testing.T) {
 }
 
 func TestFilterActiveProducerTopics(t *testing.T) {
+	instanceOfChecker.DeleteCandidates = map[string]bool{}
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -74,21 +77,22 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 	time.Sleep(time.Duration(150) * time.Millisecond)
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
-	presentTopics := getClusterTopics(adminClient)
+	instanceOfChecker.getClusterTopics(adminClient)
 	// Delete a pre-set topic
-	delete(presentTopics, "_confluent-license")
+	delete(instanceOfChecker.topicPartitionMap, "_confluent-license")
 
-	result := filterActiveProductionTopics(presentTopics, clusterClient)
+	instanceOfChecker.filterActiveProductionTopics(clusterClient)
 
 	StopProduction = true
 
-	assert.Equal(t, expectedTopicResult, result)
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
 
 func TestFilterActiveConsumerGroupTopics(t *testing.T) {
+	instanceOfChecker.DeleteCandidates = map[string]bool{}
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -98,20 +102,57 @@ func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 
 	time.Sleep(time.Duration(10) * time.Second)
 
-	presentTopics := map[string][]int32{topicA: {0}, topicB: {0}}
+	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 
-	result := filterTopicsWithConsumerGroups(presentTopics, adminClient)
+	instanceOfChecker.filterTopicsWithConsumerGroups(adminClient)
 
 	StopProduction = true
 	StopConsumption = true
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
-	assert.Equal(t, expectedTopicResult, result)
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
+
+func TestCandidacyRemoval(t *testing.T) {
+	instanceOfChecker.DeleteCandidates = map[string]bool{}
+
+	createTopicHelper(topicA)
+	createTopicHelper(topicB)
+
+	go produceTopicHelper(topicA)
+	time.Sleep(time.Duration(150) * time.Millisecond)
+	StopProduction = true
+
+	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
+	expectedTopicResult := map[string][]int32{}
+
+	// topicA is no longer empty, which means it is not a delete candidate
+	instanceOfChecker.filterEmptyTopics(clusterClient)
+
+	// At this point, topicB is a candidate, but we'll remove candidacy due to active consumer groups
+	go produceTopicHelper(topicB)
+	go consumerGroupTopicHelper(topicB, "testingCG")
+	time.Sleep(time.Duration(10) * time.Second)
+
+	instanceOfChecker.filterTopicsWithConsumerGroups(adminClient)
+
+	StopProduction = true
+	StopConsumption = true
+
+	time.Sleep(time.Duration(100) * time.Millisecond)
+
+	// There should be no candidates for deletion
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
+
+	log.Printf("Finished Assessment for no storage, cleaning up...")
+	deleteTopicHelper(topicA)
+	deleteTopicHelper(topicB)
+}
+
 
 func createTopicHelper(topicName string) {
 	thisTopicDetail := sarama.TopicDetail{

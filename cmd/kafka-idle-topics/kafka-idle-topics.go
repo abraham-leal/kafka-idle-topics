@@ -8,145 +8,173 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
 )
 
-var kafkaUrl string
-var kafkaUsername string
-var kafkaPassword string
-var kafkaSecurity string
-var fileName string
-var skip string
-var productionAssessmentTime int
-var hideInternalTopics bool
+type KafkaIdleTopics struct {
+	 kafkaUrl string
+	 kafkaUsername string
+	 kafkaPassword string
+	 kafkaSecurity string
+	 fileName string
+	 skip string
+	 productionAssessmentTime int
+	 hideInternalTopics bool
+	 topicsIdleMinutes int64
+	 waitForTopicEvaluation sync.WaitGroup
+	 topicPartitionMap map[string][]int32
+	 DeleteCandidates map[string]bool
+}
 
-func GetFlags() {
-	flag.StringVar(&kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma")
-	flag.StringVar(&kafkaUsername, "username", "", "Username in the PLAIN module")
-	flag.StringVar(&kafkaPassword, "password", "", "Password in the PLAIN module")
-	flag.StringVar(&kafkaSecurity, "kafkaSecurity", "none", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
-	flag.StringVar(&fileName, "filename", "idleTopics.txt", "Custom filename for the output if needed.")
-	flag.StringVar(&skip, "skip", "", "Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.")
-	flag.IntVar(&productionAssessmentTime, "productionAssessmentTimeMs", 30000, "Timeframe to assess active production")
-	flag.BoolVar(&hideInternalTopics, "hideInternalTopics", false, "Hide internal topics from assessment.")
+func NewKafkaIdleTopics () *KafkaIdleTopics {
+	thisInstance := KafkaIdleTopics{}
+	thisInstance.DeleteCandidates = make(map[string]bool)
+	return &thisInstance
+}
+
+func ReadCommands() *KafkaIdleTopics {
+	thisInstance := NewKafkaIdleTopics()
+
+	flag.StringVar(&thisInstance.kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma.")
+	flag.StringVar(&thisInstance.kafkaUsername, "username", "", "Username in the PLAIN module.")
+	flag.StringVar(&thisInstance.kafkaPassword, "password", "", "Password in the PLAIN module.")
+	flag.StringVar(&thisInstance.kafkaSecurity, "kafkaSecurity", "none", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
+	flag.StringVar(&thisInstance.fileName, "filename", "idleTopics.txt", "Custom filename for the output if needed.")
+	flag.StringVar(&thisInstance.skip, "skip", "", "Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.")
+	flag.IntVar(&thisInstance.productionAssessmentTime, "productionAssessmentTimeMs", 30000, "Timeframe to assess active production.")
+	flag.Int64Var(&thisInstance.topicsIdleMinutes, "idleMinutes", 0, "Amount of minutes a topic should be idle to report it.")
+	flag.BoolVar(&thisInstance.hideInternalTopics, "hideInternalTopics", false, "Hide internal topics from assessment.")
 
 	flag.Parse()
+
+	return thisInstance
 }
 
 func main() {
-	GetFlags()
 
-	if kafkaSecurity == "plain_tls" || kafkaSecurity == "plain" {
+	myChecker := ReadCommands()
+
+	if myChecker.kafkaSecurity == "plain_tls" || myChecker.kafkaSecurity == "plain" {
 		// If the parameters are empty, go fetch from env
-		if kafkaUrl == "" || kafkaUsername == "" || kafkaPassword == "" {
-			kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
-			kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
-			kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
+		if myChecker.kafkaUrl == "" || myChecker.kafkaUsername == "" || myChecker.kafkaPassword == "" {
+			myChecker.kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
+			myChecker.kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
+			myChecker.kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
 		}
 	}
 
-	adminClient := getAdminClient(kafkaSecurity)
-	clusterClient := getClusterClient(kafkaSecurity)
+	adminClient := myChecker.getAdminClient(myChecker.kafkaSecurity)
+	clusterClient := myChecker.getClusterClient(myChecker.kafkaSecurity)
 	defer adminClient.Close()
 	defer clusterClient.Close()
 
-	stepsToSkip := strings.Split(skip, ",")
+	stepsToSkip := strings.Split(myChecker.skip, ",")
 
 	// Extract Topics in Cluster
-	topicPartitionMap := getClusterTopics(adminClient)
+	myChecker.topicPartitionMap = myChecker.getClusterTopics(adminClient)
 
-	if !isInSlice("production", stepsToSkip) {
-		topicPartitionMap = filterActiveProductionTopics(topicPartitionMap, clusterClient)
-	}
-
-	if !isInSlice("consumption", stepsToSkip) {
-		topicPartitionMap = filterTopicsWithConsumerGroups(topicPartitionMap, adminClient)
-	}
-
-	if !isInSlice("storage", stepsToSkip) {
-		topicPartitionMap = filterEmptyTopics(topicPartitionMap, clusterClient)
-	}
-
-	if hideInternalTopics {
-		for t := range topicPartitionMap {
+	if myChecker.hideInternalTopics {
+		for t := range myChecker.topicPartitionMap {
 			if strings.HasPrefix(t, "_") {
-				delete(topicPartitionMap, t)
+				delete(myChecker.topicPartitionMap, t)
 			}
 		}
 	}
 
-	path := writeTopicsLocally(topicPartitionMap)
+	if !isInSlice("production", stepsToSkip) {
+		if myChecker.topicsIdleMinutes == 0 {
+			myChecker.filterActiveProductionTopics(clusterClient)
+		} else {
+			myChecker.filterTopicsIdleSince(clusterClient)
+		}
+	}
 
-	topicCount := len(topicPartitionMap)
+	if !isInSlice("consumption", stepsToSkip) {
+		myChecker.filterTopicsWithConsumerGroups(adminClient)
+	}
+
+	if !isInSlice("storage", stepsToSkip) {
+		myChecker.filterEmptyTopics(clusterClient)
+	}
+
+	myChecker.filterOutDeleteCandidates()
+
+	path := myChecker.writeDeleteCandidatesLocally()
+
 	partitionCount := 0
-	for _, ps := range topicPartitionMap {
+	for _, ps := range myChecker.topicPartitionMap {
 		partitionCount = partitionCount + len(ps)
 	}
 
-	log.Printf("Done! You can delete %v topics and %v partitions! A list of found idle topics is available at: %s", topicCount, partitionCount, path)
+	log.Printf("Done! You can delete %v topics and %v partitions! A list of found idle topics is available at: %s", len(myChecker.topicPartitionMap), partitionCount, path)
 }
 
 /*
 	Uses the provided Sarama Admin Client to get a list of current topics in the cluster
 */
-func getClusterTopics(adminClient sarama.ClusterAdmin) map[string][]int32 {
+func (c *KafkaIdleTopics) getClusterTopics(adminClient sarama.ClusterAdmin) map[string][]int32 {
 	log.Println("Loading Topics...")
 	topicMetadata, err := adminClient.ListTopics()
 	if err != nil {
 		log.Fatalf("Could not reach cluster within the last 30 seconds. Is the configuration correct? %v", err)
 	}
 
-	topicPartitionMap := map[string][]int32{}
+	c.topicPartitionMap = map[string][]int32{}
 	for t, td := range topicMetadata {
-		topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
+		c.topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
 	}
 
-	return topicPartitionMap
+	return c.topicPartitionMap
 }
 
 /*
-	Takes a list of topics and filters it out of topics that DO have data in them.
-	Returns and accepts a List of the form map[string]sarama.TopicDetail.
-	The returned list is topics without data in them.
+	Adds topics with nothing stored in them to c.DeleteCandidates
+	It is also possible for this method to remove candidacy if it detects activity.
 */
-func filterEmptyTopics(topicPartitionMap map[string][]int32, clusterClient sarama.Client) map[string][]int32 {
+func (c *KafkaIdleTopics) filterEmptyTopics(clusterClient sarama.Client) {
 	log.Println("Evaluating Topics without anything in them...")
 
-	for t, td := range topicPartitionMap {
+	for topic, td := range c.topicPartitionMap {
 		thisTopicsPartitions := td
 		for _, partition := range thisTopicsPartitions {
-			oldestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetOldest)
+			oldestOffsetForPartition, err := clusterClient.GetOffset(topic, partition, sarama.OffsetOldest)
 			if err != nil {
 				log.Fatalf("Could not determine topic storage: %v", err)
 			}
-			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
+			newestOffsetForPartition, err := clusterClient.GetOffset(topic, partition, sarama.OffsetNewest)
 			if err != nil {
 				log.Fatalf("Could not determine topic storage: %v", err)
 			}
 			if oldestOffsetForPartition != newestOffsetForPartition {
-				delete(topicPartitionMap, t)
+				c.DeleteCandidates[topic] = false
+				break
+			} else {
+				v, e := c.DeleteCandidates[topic]
+				if !e  {
+					c.DeleteCandidates[topic] = true
+				} else if e && v != false {
+					c.DeleteCandidates[topic] = true
+				}
 			}
 		}
 	}
-
-	return topicPartitionMap
 }
 
 /*
-	Takes a list of topics and filters it out of topics that are being actively produced to.
-	Returns and accepts a List of the form map[string]sarama.TopicDetail.
-	The returned list are topics that do not have active producers.
+	Adds topics that aren't being actively produced to c.DeleteCandidates
+	It is also possible for this method to remove candidacy if it detects activity.
 */
-func filterActiveProductionTopics(topicPartitionMap map[string][]int32, clusterClient sarama.Client) map[string][]int32 {
+func (c *KafkaIdleTopics) filterActiveProductionTopics(clusterClient sarama.Client) {
 	log.Println("Evaluating Topics without any active production...")
 
 	beginTopicInspection := map[string]map[int64]int64{}
 
-	for t := range topicPartitionMap {
+	for t := range c.topicPartitionMap {
 		thisTopicCounts := map[int64]int64{}
-		for _, partition := range topicPartitionMap[t] {
+		for _, partition := range c.topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
 			if err != nil {
 				log.Fatalf("Could not determine topic end offset: %v", err)
@@ -157,14 +185,14 @@ func filterActiveProductionTopics(topicPartitionMap map[string][]int32, clusterC
 	}
 
 	// Sleep for configurable time to see if the offsets grow
-	log.Printf("Waiting for %v ms to evaluate active production.", productionAssessmentTime)
-	time.Sleep(time.Duration(productionAssessmentTime) * time.Millisecond)
+	log.Printf("Waiting for %v ms to evaluate active production.", c.productionAssessmentTime)
+	time.Sleep(time.Duration(c.productionAssessmentTime) * time.Millisecond)
 
 	endTopicInspection := map[string]map[int64]int64{}
 
-	for t := range topicPartitionMap {
+	for t := range c.topicPartitionMap {
 		thisTopicCounts := map[int64]int64{}
-		for _, partition := range topicPartitionMap[t] {
+		for _, partition := range c.topicPartitionMap[t] {
 			newestOffsetForPartition, err := clusterClient.GetOffset(t, partition, sarama.OffsetNewest)
 			if err != nil {
 				log.Fatalf("Could not determine topic end offset: %v", err)
@@ -176,19 +204,23 @@ func filterActiveProductionTopics(topicPartitionMap map[string][]int32, clusterC
 
 	for topic, partitionOffset := range endTopicInspection {
 		if !reflect.DeepEqual(beginTopicInspection[topic], partitionOffset) {
-			delete(topicPartitionMap, topic)
+			c.DeleteCandidates[topic] = false
+		} else {
+			v, e := c.DeleteCandidates[topic]
+			if !e {
+				c.DeleteCandidates[topic] = true
+			} else if e && v != false {
+				c.DeleteCandidates[topic] = true
+			}
 		}
 	}
-
-	return topicPartitionMap
 }
 
 /*
-	Takes a list of topics and filters it out of topics that have active consumer groups. (Existing Offsets)
-	Returns a List of the form map[string]sarama.TopicDetail
-	The returned list are topics that do not have a consumer group record.
+	Adds topics that do not have any consumer groups to c.DeleteCandidates
+	It is also possible for this method to remove candidacy if it detects activity.
 */
-func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient sarama.ClusterAdmin) map[string][]int32 {
+func (c *KafkaIdleTopics) filterTopicsWithConsumerGroups(adminClient sarama.ClusterAdmin) {
 	log.Println("Evaluating Topics without active Consumer Groups...")
 	allConsumerGroups, err := adminClient.ListConsumerGroups()
 	if err != nil {
@@ -196,7 +228,7 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 	}
 
 	for cg := range allConsumerGroups {
-		result, err := adminClient.ListConsumerGroupOffsets(cg, topics)
+		result, err := adminClient.ListConsumerGroupOffsets(cg, c.topicPartitionMap)
 		if err != nil {
 			log.Fatalf("Cannot determine if topic is in use by consumers.")
 		}
@@ -204,33 +236,123 @@ func filterTopicsWithConsumerGroups(topics map[string][]int32, adminClient saram
 		for topic, partitionData := range result.Blocks {
 			for _, dataset := range partitionData {
 				if dataset.Offset != -1 {
-					delete(topics, topic)
+					c.DeleteCandidates[topic] = false
 					break
+				} else {
+					v, e := c.DeleteCandidates[topic]
+					if !e {
+						c.DeleteCandidates[topic] = true
+					} else if e && v != false {
+						c.DeleteCandidates[topic] = true
+					}
 				}
 			}
 		}
 	}
-
-	return topics
 }
 
-func getAdminClient(securityContext string) sarama.ClusterAdmin {
-	adminClient, err := sarama.NewClusterAdmin(strings.Split(kafkaUrl, ","), generateClientConfigs(securityContext))
+/*
+	Adds topics that have not been produced to since a c.timeMinutesSince to c.DeleteCandidates
+	It is also possible for this method to remove candidacy if it detects activity.
+ */
+func (c *KafkaIdleTopics) filterTopicsIdleSince (clusterClient sarama.Client) {
+	log.Printf("Evaluating Topics that haven't been produced to since... %v", time.Now().Add(-time.Duration(c.topicsIdleMinutes) * time.Minute))
+
+	evaluatingConsumer, err := sarama.NewConsumerFromClient(clusterClient)
+	if err != nil {
+		log.Fatalln("Could not consume from cluster to evaluate")
+	}
+	defer evaluatingConsumer.Close()
+
+	for topic, td := range c.topicPartitionMap {
+		thisTopicsPartitions := td
+		thisTopicConsumers := []sarama.PartitionConsumer{}
+
+		for _, partition := range thisTopicsPartitions {
+			pcons, err := evaluatingConsumer.ConsumePartition(topic, partition, sarama.OffsetNewest-1)
+			if err != nil {
+				log.Fatalf("Could not consume from topic: %v", err)
+			}
+			thisTopicConsumers = append(thisTopicConsumers, pcons)
+		}
+		c.waitForTopicEvaluation.Add(1)
+		go c.evaluateTopicTimes(thisTopicConsumers, topic, &c.waitForTopicEvaluation)
+	}
+
+	c.waitForTopicEvaluation.Wait()
+}
+
+/*
+	Helper method to filterTopicsIdleSince
+ */
+func (c *KafkaIdleTopics) evaluateTopicTimes(pcons []sarama.PartitionConsumer, topic string, group *sync.WaitGroup) {
+	defer group.Done()
+	partitionHasSomething := []bool{}
+
+	for _, pcon := range pcons {
+		select {
+			case msg := <- pcon.Messages():
+				if msg.Timestamp.Before(time.Now().Add(-time.Duration(c.topicsIdleMinutes) * time.Minute)) { // If last produced message has timestamp before deadline
+					partitionHasSomething = append(partitionHasSomething, false) // Add topic as candidate
+				} else {
+					partitionHasSomething = append(partitionHasSomething, true) // Else: Remove
+				}
+				break
+			case <-time.After(time.Duration(5) * time.Second):
+				partitionHasSomething = append(partitionHasSomething, false) // If times out, add as candidate
+		}
+		pcon.AsyncClose()
+	}
+
+	for _, value := range partitionHasSomething {
+		if value == true {
+			c.DeleteCandidates[topic] = false
+			return
+		}
+	}
+
+	v, e := c.DeleteCandidates[topic]
+	if !e {
+		c.DeleteCandidates[topic] = true
+	} else if e && v != false {
+		c.DeleteCandidates[topic] = true
+	}
+}
+
+/*
+	Filters c.topicPartitionMap to include the same topics as c.DeleteCandidates
+	and cleans c.DeleteCandidates to only include topics to be removed.
+ */
+func (c *KafkaIdleTopics) filterOutDeleteCandidates (){
+
+	for t := range c.topicPartitionMap {
+		v, existsInCandidates := c.DeleteCandidates[t]
+		if existsInCandidates && !v {
+			delete(c.topicPartitionMap, t)
+			delete(c.DeleteCandidates, t)
+		} else if !existsInCandidates {
+			delete(c.topicPartitionMap, t)
+		}
+	}
+}
+
+func (c *KafkaIdleTopics) getAdminClient(securityContext string) sarama.ClusterAdmin {
+	adminClient, err := sarama.NewClusterAdmin(strings.Split(c.kafkaUrl, ","), c.generateClientConfigs(securityContext))
 	if err != nil {
 		log.Fatalf("Unable to create Kafka Client: %v", err)
 	}
 	return adminClient
 }
 
-func getClusterClient(securityContext string) sarama.Client {
-	clusterClient, err := sarama.NewClient(strings.Split(kafkaUrl, ","), generateClientConfigs(securityContext))
+func (c *KafkaIdleTopics) getClusterClient(securityContext string) sarama.Client {
+	clusterClient, err := sarama.NewClient(strings.Split(c.kafkaUrl, ","), c.generateClientConfigs(securityContext))
 	if err != nil {
 		log.Fatalf("Unable to create Kafka Client: %v", err)
 	}
 	return clusterClient
 }
 
-func generateClientConfigs(securityContext string) *sarama.Config {
+func (c *KafkaIdleTopics) generateClientConfigs(securityContext string) *sarama.Config {
 	clientConfigs := sarama.NewConfig()
 	clientConfigs.ClientID = "kafka-idle-topics"
 	clientConfigs.Producer.Return.Successes = true
@@ -239,32 +361,32 @@ func generateClientConfigs(securityContext string) *sarama.Config {
 	clientConfigs.Consumer.Offsets.AutoCommit.Interval = time.Duration(10) * time.Millisecond
 	if securityContext == "plain_tls" {
 		clientConfigs.Net.SASL.Enable = true
-		clientConfigs.Net.SASL.User = kafkaUsername
-		clientConfigs.Net.SASL.Password = kafkaPassword
+		clientConfigs.Net.SASL.User = c.kafkaUsername
+		clientConfigs.Net.SASL.Password = c.kafkaPassword
 		clientConfigs.Net.TLS.Enable = true
 	} else if securityContext == "plain" {
 		clientConfigs.Net.SASL.Enable = true
-		clientConfigs.Net.SASL.User = kafkaUsername
-		clientConfigs.Net.SASL.Password = kafkaPassword
+		clientConfigs.Net.SASL.User = c.kafkaUsername
+		clientConfigs.Net.SASL.Password = c.kafkaPassword
 	} else if securityContext == "tls" {
 		clientConfigs.Net.TLS.Enable = true
 	}
 	return clientConfigs
 }
 
-func writeTopicsLocally(topics map[string][]int32) string {
+func (c *KafkaIdleTopics) writeDeleteCandidatesLocally () string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Could not write results due to: %v", err)
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s/%s", currentDir, fileName))
+	file, err := os.Create(fmt.Sprintf("%s/%s", currentDir, c.fileName))
 	if err != nil {
 		log.Fatalf("Could not write results due to: %v", err)
 	}
 	defer file.Close()
 
-	for topic := range topics {
+	for topic := range c.DeleteCandidates {
 		_, err := file.WriteString(topic)
 		if err != nil {
 			log.Printf("WARN: Could not write this topic to file: %s", topic)

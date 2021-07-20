@@ -13,8 +13,6 @@ Ensure efficient usage of your topics in https://www.confluent.io/confluent-clou
 - It has no data within its partitions.
 
 To download, go to `Run` for different ways of usage. It is also possible to download a release.
-Releases are tagged by branch hash. This project does not follow versioning as it is very small.
-
 The output will be written to a file in the same directory. The name of this file is configurable.
 
 == Usage
@@ -23,21 +21,23 @@ The output will be written to a file in the same directory. The name of this fil
 ----
 Usage of ./kafka-idle-topics:
   -bootstrap-servers string
-    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma
+    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma.
   -filename string
     	Custom filename for the output if needed. (default "idleTopics.txt")
   -hideInternalTopics
     	Hide internal topics from assessment.
+  -idleMinutes int
+    	Amount of minutes a topic should be idle to report it.
   -kafkaSecurity string
     	Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none. (default "none")
   -password string
-    	Password in the PLAIN module
+    	Password in the PLAIN module.
   -productionAssessmentTimeMs int
-    	Timeframe to assess active production (default 30000)
+    	Timeframe to assess active production. (default 30000)
   -skip string
     	Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.
   -username string
-    	Username in the PLAIN module
+    	Username in the PLAIN module.
 ----
 
 == Security

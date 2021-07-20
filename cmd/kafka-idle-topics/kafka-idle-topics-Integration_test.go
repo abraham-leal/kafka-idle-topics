@@ -30,9 +30,9 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	//composeEnv = testcontainers.NewLocalDockerCompose([]string{"docker-compose.yml"}, "kafka-idle-topics")
-	//composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
-	//time.Sleep(time.Duration(10) * time.Second) // give services time to set up
+	composeEnv = testcontainers.NewLocalDockerCompose([]string{"docker-compose.yml"}, "kafka-idle-topics")
+	composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
+	time.Sleep(time.Duration(10) * time.Second) // give services time to set up
 
 	instanceOfChecker.kafkaUrl = "localhost:9092"
 	instanceOfChecker.productionAssessmentTime = 30000

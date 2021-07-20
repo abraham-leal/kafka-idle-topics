@@ -146,9 +146,9 @@ func TestCandidacyRemoval(t *testing.T) {
 	StopProduction = true
 	StopConsumption = true
 
-	instanceOfChecker.filterOutDeleteCandidates()
-
 	time.Sleep(time.Duration(100) * time.Millisecond)
+
+	instanceOfChecker.filterOutDeleteCandidates()
 
 	// There should be no candidates for deletion
 	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)

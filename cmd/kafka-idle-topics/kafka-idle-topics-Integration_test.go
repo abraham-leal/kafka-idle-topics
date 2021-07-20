@@ -47,6 +47,8 @@ func teardown() {
 
 func TestFilterNoStorageTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
+	StopProduction = false
+	StopConsumption = false
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -70,6 +72,8 @@ func TestFilterNoStorageTopics(t *testing.T) {
 
 func TestFilterActiveProducerTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
+	StopProduction = false
+	StopConsumption = false
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -79,8 +83,6 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 
 	expectedTopicResult := map[string]bool{topicB: true}
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
-	// Delete a pre-set topic
-	delete(instanceOfChecker.topicPartitionMap, "_confluent-license")
 
 	instanceOfChecker.filterActiveProductionTopics(clusterClient)
 	instanceOfChecker.filterOutDeleteCandidates()
@@ -95,6 +97,8 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 
 func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
+	StopProduction = false
+	StopConsumption = false
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -122,6 +126,8 @@ func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 
 func TestCandidacyRemoval(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
+	StopProduction = false
+	StopConsumption = false
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -153,7 +159,7 @@ func TestCandidacyRemoval(t *testing.T) {
 	// There should be no candidates for deletion
 	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
-	log.Printf("Finished Assessment for no storage, cleaning up...")
+	log.Printf("Finished Assessment for candidacy, cleaning up...")
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
@@ -198,6 +204,7 @@ func consumerGroupTopicHelper(topicName string, cgName string) {
 		ready: make(chan bool),
 	}
 
+	log.Println("Starting Consumer")
 	ctx, cancel := context.WithCancel(context.Background())
 	consumerGroup, err := sarama.NewConsumerGroupFromClient(cgName, clusterClient)
 	if err != nil {
@@ -240,6 +247,7 @@ func produceTopicHelper(topicName string) {
 		log.Fatalf("Could not produce to test cluster: %v", err)
 	}
 
+	log.Println("Starting Producer")
 	for {
 		if StopProduction == true {
 			producer.Close()

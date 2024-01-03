@@ -60,6 +60,7 @@ func teardown() {
 func TestFilterAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Allowlist")
 	AllowList = StringArrayFlag{topicB: true}
+	DisallowList = nil
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -72,6 +73,7 @@ func TestFilterAllowListTopics(t *testing.T) {
 
 	log.Printf("Finished Assessment for Allowlist, cleaning up...")
 	AllowList = nil
+	DisallowList = nil
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
@@ -79,6 +81,7 @@ func TestFilterAllowListTopics(t *testing.T) {
 func TestFilterDisAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Disallowlist")
 	DisallowList = StringArrayFlag{topicB: true}
+	AllowList = nil
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -91,6 +94,7 @@ func TestFilterDisAllowListTopics(t *testing.T) {
 
 	log.Printf("Finished Assessment for Disallowlist, cleaning up...")
 	DisallowList = nil
+	AllowList = nil
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }

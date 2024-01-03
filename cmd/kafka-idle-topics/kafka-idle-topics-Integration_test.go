@@ -65,11 +65,11 @@ func TestFilterAllowListTopics(t *testing.T) {
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
 
-	instanceOfChecker.getClusterTopics(adminClient)
+	actualTopics := instanceOfChecker.getClusterTopics(adminClient)
 
 	expectedTopicResult := map[string][]int32{topicB: {0}}
 
-	assert.Equal(t, expectedTopicResult, instanceOfChecker.topicPartitionMap)
+	assert.Equal(t, expectedTopicResult, actualTopics)
 
 	log.Printf("Finished Assessment for Allowlist, cleaning up...")
 	AllowList = nil
@@ -80,17 +80,17 @@ func TestFilterAllowListTopics(t *testing.T) {
 
 func TestFilterDisAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Disallowlist")
-	DisallowList = StringArrayFlag{topicB: true}
+	DisallowList = StringArrayFlag{topicA: true}
 	AllowList = nil
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
 
-	instanceOfChecker.getClusterTopics(adminClient)
+	actualTopics := instanceOfChecker.getClusterTopics(adminClient)
 
-	expectedTopicResult := map[string][]int32{topicA: {0}}
+	expectedTopicResult := map[string][]int32{topicB: {0}}
 
-	assert.Equal(t, expectedTopicResult, instanceOfChecker.topicPartitionMap)
+	assert.Equal(t, expectedTopicResult, actualTopics)
 
 	log.Printf("Finished Assessment for Disallowlist, cleaning up...")
 	DisallowList = nil

@@ -2,18 +2,18 @@ package main
 
 import (
 	"context"
+	"github.com/testcontainers/testcontainers-go/modules/kafka"
 	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 )
 
-var composeEnv *testcontainers.LocalDockerCompose
 var adminClient sarama.ClusterAdmin
 var clusterClient sarama.Client
 var StopProduction = false
@@ -21,6 +21,8 @@ var StopConsumption = false
 var topicA = "hasThings"
 var topicB = "doesNotHaveThings"
 var instanceOfChecker = NewKafkaIdleTopics()
+var ctx = context.Background()
+var kafkaContainer = kafka.KafkaContainer{}
 
 func TestMain(m *testing.M) {
 	setup()
@@ -30,11 +32,21 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	composeEnv = testcontainers.NewLocalDockerCompose([]string{"docker-compose.yml"}, "kafka-idle-topics")
-	composeEnv.WithCommand([]string{"up", "-d"}).Invoke()
-	time.Sleep(time.Duration(10) * time.Second) // give services time to set up
 
-	instanceOfChecker.kafkaUrl = "localhost:9092"
+	kafkaContainer, err := kafka.RunContainer(ctx,
+		kafka.WithClusterID("test-cluster"),
+		testcontainers.WithImage("confluentinc/confluent-local:7.5.3"),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	brokerList, err := kafkaContainer.Brokers(ctx)
+	if err != nil {
+		log.Fatal("Kafka was not able to start")
+	}
+
+	instanceOfChecker.kafkaUrl = brokerList[0]
 	instanceOfChecker.productionAssessmentTime = 30000
 	adminClient = instanceOfChecker.getAdminClient("none")
 	clusterClient = instanceOfChecker.getClusterClient("none")
@@ -45,7 +57,46 @@ func teardown() {
 	clusterClient.Close()
 }
 
+func TestFilterAllowListTopics(t *testing.T) {
+	log.Printf("Starting Assessment for Allowlist")
+	AllowList = StringArrayFlag{topicB: true}
+
+	createTopicHelper(topicA)
+	createTopicHelper(topicB)
+
+	instanceOfChecker.getClusterTopics(adminClient)
+
+	expectedTopicResult := map[string][]int32{topicB: {0}}
+
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.topicPartitionMap)
+
+	log.Printf("Finished Assessment for Allowlist, cleaning up...")
+	AllowList = nil
+	deleteTopicHelper(topicA)
+	deleteTopicHelper(topicB)
+}
+
+func TestFilterDisAllowListTopics(t *testing.T) {
+	log.Printf("Starting Assessment for Disallowlist")
+	DisallowList = StringArrayFlag{topicB: true}
+
+	createTopicHelper(topicA)
+	createTopicHelper(topicB)
+
+	instanceOfChecker.getClusterTopics(adminClient)
+
+	expectedTopicResult := map[string][]int32{topicA: {0}}
+
+	assert.Equal(t, expectedTopicResult, instanceOfChecker.topicPartitionMap)
+
+	log.Printf("Finished Assessment for Disallowlist, cleaning up...")
+	DisallowList = nil
+	deleteTopicHelper(topicA)
+	deleteTopicHelper(topicB)
+}
+
 func TestFilterNoStorageTopics(t *testing.T) {
+	log.Printf("Starting Assessment for No Storage")
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
@@ -71,6 +122,7 @@ func TestFilterNoStorageTopics(t *testing.T) {
 }
 
 func TestFilterActiveProducerTopics(t *testing.T) {
+	log.Printf("Starting Assessment for Active Producing")
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
@@ -91,11 +143,13 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 
 	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
+	log.Printf("Finished Assessment for active producing, cleaning up...")
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
 
 func TestFilterActiveConsumerGroupTopics(t *testing.T) {
+	log.Printf("Starting Assessment for Active CGs")
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
@@ -116,15 +170,17 @@ func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 
 	StopProduction = true
 	StopConsumption = true
-	time.Sleep(time.Duration(100) * time.Millisecond)
+	time.Sleep(time.Duration(500) * time.Millisecond)
 
 	assert.Equal(t, expectedTopicResult, instanceOfChecker.DeleteCandidates)
 
+	log.Printf("Finished Assessment for active CGs, cleaning up...")
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
 
 func TestCandidacyRemoval(t *testing.T) {
+	log.Printf("Starting Assessment for Candidacy Removal")
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
@@ -163,7 +219,6 @@ func TestCandidacyRemoval(t *testing.T) {
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
-
 
 func createTopicHelper(topicName string) {
 	thisTopicDetail := sarama.TopicDetail{

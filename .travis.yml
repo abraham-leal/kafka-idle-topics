@@ -9,9 +9,8 @@ services:
 
 script:
   - docker pull confluentinc/confluent-local:7.5.3
-  - go build cmd/kafka-idle-topics/kafka-idle-topics.go
-  - cd cmd/kafka-idle-topics/
-  - docker-compose up -d
+  - cd kafka-idle-topics/
+  - go build kafka-idle-topics/
   - go test
 
 addons:

@@ -10,6 +10,7 @@ import (
 
 func NewKafkaIdleTopics() *KafkaIdleTopics {
 	thisInstance := KafkaIdleTopics{}
+
 	thisInstance.DeleteCandidates = make(map[string]bool)
 	return &thisInstance
 }

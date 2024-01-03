@@ -41,7 +41,17 @@ func (c *KafkaIdleTopics) getClusterTopics(adminClient sarama.ClusterAdmin) map[
 		c.topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
 	}
 
+	log.Println("Before filter:")
+	for t := range c.topicPartitionMap {
+		log.Println(t)
+	}
+
 	filterListedTopics(c.topicPartitionMap)
+
+	log.Println("After filter:")
+	for t := range c.topicPartitionMap {
+		log.Println(t)
+	}
 
 	return c.topicPartitionMap
 }

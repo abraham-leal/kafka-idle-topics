@@ -235,6 +235,21 @@ func createTopicHelper(topicName string) {
 	if err != nil {
 		log.Printf("Could not create topic: %v", err)
 	}
+
+	for {
+		td, err := adminClient.ListTopics()
+		if err != nil {
+			log.Printf("Could not verify topic creation: %v", err)
+		}
+
+		_, exists := td[topicName]
+		if exists {
+			break
+		} else {
+			log.Println("Topic not created yet " + topicName)
+		}
+	}
+
 	log.Printf("Created Topic: %s", topicName)
 }
 

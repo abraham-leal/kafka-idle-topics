@@ -28,7 +28,7 @@ func ReadCommands() *KafkaIdleTopics {
 	flag.BoolVar(&thisInstance.hideInternalTopics, "hideInternalTopics", false, "Hide internal topics from assessment.")
 	versionFlag := flag.Bool("version", false, "Print the current version and exit")
 	flag.Var(&AllowList, "allowList", "A comma delimited list of topics to evaluate. It also accepts a path to a file containing a list of topics.")
-	flag.Var(&DisallowList, "disallowList", "A comma delimited list of topics to excluse from evaluation. It also accepts a path to a file containing a list of topics.")
+	flag.Var(&DisallowList, "disallowList", "A comma delimited list of topics to exclude from evaluation. It also accepts a path to a file containing a list of topics.")
 
 	flag.Parse()
 

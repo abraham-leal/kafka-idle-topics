@@ -1,18 +1,16 @@
 language: go
 
 go:
-  - 1.15.x
-  - 1.16.x
+  - 1.20.x
+  - 1.21.x
 
 services:
   - docker
 
 script:
-  - docker pull confluentinc/cp-zookeeper:6.1.0
-  - docker pull confluentinc/cp-server:6.1.0
-  - go build cmd/kafka-idle-topics/kafka-idle-topics.go
+  - docker pull confluentinc/confluent-local:7.5.3
+  - go build -o kafka-idle-topics ./cmd/kafka-idle-topics/*
   - cd cmd/kafka-idle-topics/
-  - docker-compose up -d
   - go test
 
 addons:

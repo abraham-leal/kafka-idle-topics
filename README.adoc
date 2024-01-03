@@ -92,6 +92,14 @@ go build ./cmd/kafka-idle-topics/kafka-idle-topics.go
 ./kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>> -kafkaSecurity plain_tls
 ----
 
+=== Filtering the evaluation
+
+It is now possible to filter the topics which are evaluated.
+Setting `-allowList` or/and `-disallowList` flags will accept either a comma delimited string, or a file containing
+comma delimited entries for topic names.
+If specifying a file, make sure it has an extension (such as `.txt`).
+A topic specified in `-disallowList` and `-allowList` will be disallowed by default.
+
 == Feature Requests / Issue Reporting
 
 This repo tracks feature requests and issues through Github Issues.

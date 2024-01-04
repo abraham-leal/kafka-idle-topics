@@ -54,13 +54,13 @@ func (i *StringArrayFlag) removeSpaces(str string) string {
 	}, str)
 }
 
-func GetOSEnvVar(env_var string) string {
+func GetOSEnvVar(env_var string) (string, error) {
 	key, present := os.LookupEnv(env_var)
 	if present && key != "" {
-		return key
+		return key, nil
 	}
 
-	panic(errors.New("Environment variable has not been specified: " + env_var))
+	return "", errors.New("Environment variable has not been specified: " + env_var)
 }
 
 func isInSlice(i string, list []string) bool {

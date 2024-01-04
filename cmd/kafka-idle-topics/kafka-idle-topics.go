@@ -53,15 +53,10 @@ func main() {
 		}
 	}
 
-	adminClient := myChecker.getAdminClient(myChecker.kafkaSecurity)
-	clusterClient := myChecker.getClusterClient(myChecker.kafkaSecurity)
-	defer adminClient.Close()
-	defer clusterClient.Close()
-
 	stepsToSkip := strings.Split(myChecker.skip, ",")
 
 	// Extract Topics in Cluster
-	myChecker.topicPartitionMap = myChecker.getClusterTopics(adminClient)
+	myChecker.topicPartitionMap = myChecker.getClusterTopics(myChecker.getAdminClient(myChecker.kafkaSecurity))
 
 	if myChecker.hideInternalTopics {
 		for t := range myChecker.topicPartitionMap {
@@ -73,18 +68,18 @@ func main() {
 
 	if !isInSlice("production", stepsToSkip) {
 		if myChecker.topicsIdleMinutes == 0 {
-			myChecker.filterActiveProductionTopics(clusterClient)
+			myChecker.filterActiveProductionTopics(myChecker.getClusterClient(myChecker.kafkaSecurity))
 		} else {
-			myChecker.filterTopicsIdleSince(clusterClient)
+			myChecker.filterTopicsIdleSince(myChecker.getClusterClient(myChecker.kafkaSecurity))
 		}
 	}
 
 	if !isInSlice("consumption", stepsToSkip) {
-		myChecker.filterTopicsWithConsumerGroups(adminClient)
+		myChecker.filterTopicsWithConsumerGroups(myChecker.getAdminClient(myChecker.kafkaSecurity))
 	}
 
 	if !isInSlice("storage", stepsToSkip) {
-		myChecker.filterEmptyTopics(clusterClient)
+		myChecker.filterEmptyTopics(myChecker.getClusterClient(myChecker.kafkaSecurity))
 	}
 
 	myChecker.filterOutDeleteCandidates()

@@ -20,8 +20,12 @@ The output will be written to a file in the same directory. The name of this fil
 [source,bash]
 ----
 Usage of ./kafka-idle-topics:
+  -allowList value
+    	A comma delimited list of topics to evaluate. It also accepts a path to a file containing a list of topics.
   -bootstrap-servers string
     	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma.
+  -disallowList value
+    	A comma delimited list of topics to exclude from evaluation. It also accepts a path to a file containing a list of topics.
   -filename string
     	Custom filename for the output if needed. (default "idleTopics.txt")
   -hideInternalTopics
@@ -38,6 +42,8 @@ Usage of ./kafka-idle-topics:
     	Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.
   -username string
     	Username in the PLAIN module.
+  -version
+    	Print the current version and exit
 ----
 
 == Security

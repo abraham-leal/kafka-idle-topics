@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -47,9 +48,24 @@ func main() {
 	if myChecker.kafkaSecurity == "plain_tls" || myChecker.kafkaSecurity == "plain" {
 		// If the parameters are empty, go fetch from env
 		if myChecker.kafkaUrl == "" || myChecker.kafkaUsername == "" || myChecker.kafkaPassword == "" {
-			myChecker.kafkaUrl = GetOSEnvVar("KAFKA_BOOTSTRAP")
-			myChecker.kafkaUsername = GetOSEnvVar("KAFKA_USERNAME")
-			myChecker.kafkaPassword = GetOSEnvVar("KAFKA_PASSWORD")
+			myChecker.kafkaUsername, _ = GetOSEnvVar("KAFKA_BOOTSTRAP")
+			myChecker.kafkaUsername, _ = GetOSEnvVar("KAFKA_USERNAME")
+			myChecker.kafkaPassword, _ = GetOSEnvVar("KAFKA_PASSWORD")
+		}
+	}
+
+	if myChecker.topicsIdleMinutes == 0 {
+		envVar, err := GetOSEnvVar("KAFKA_IDLE_MINUTES")
+		if err != nil {
+			log.Printf("%s, using default of 0\n", err)
+			myChecker.topicsIdleMinutes = 0
+		} else {
+			idleInt, err := strconv.ParseInt(envVar, 10, 64)
+			if err != nil {
+				log.Printf("Couldn't parse env var %v, using default of 0", err)
+				myChecker.topicsIdleMinutes = 0
+			}
+			myChecker.topicsIdleMinutes = idleInt
 		}
 	}
 

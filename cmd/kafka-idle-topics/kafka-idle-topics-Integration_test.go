@@ -202,7 +202,7 @@ func TestCandidacyRemoval(t *testing.T) {
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	time.Sleep(time.Duration(150) * time.Millisecond)
+	time.Sleep(time.Duration(500) * time.Millisecond)
 	StopProduction = true
 
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
@@ -221,7 +221,7 @@ func TestCandidacyRemoval(t *testing.T) {
 	StopProduction = true
 	StopConsumption = true
 
-	time.Sleep(time.Duration(100) * time.Millisecond)
+	time.Sleep(time.Duration(500) * time.Millisecond)
 
 	instanceOfChecker.filterOutDeleteCandidates()
 

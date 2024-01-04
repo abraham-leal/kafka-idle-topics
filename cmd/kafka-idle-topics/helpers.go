@@ -12,8 +12,6 @@ import (
 )
 
 var Version = "1.1-SNAPSHOT"
-var AllowList StringArrayFlag
-var DisallowList StringArrayFlag
 
 type StringArrayFlag map[string]bool
 
@@ -115,24 +113,5 @@ func CheckPath(definedPath string, workingDirectory string) string {
 			}
 		}
 		return definedPath
-	}
-}
-
-// Filters the provided slice of topics according to what is provided in AllowList and DisallowList
-func filterListedTopics(response map[string][]int32) {
-
-	for s, _ := range response { // Filter out for lists
-		if AllowList != nil { // If allow list is defined
-			_, allowContains := AllowList[s]
-			if !allowContains { // If allow list does not contain it, delete it
-				delete(response, s)
-			}
-		}
-		if DisallowList != nil { // If disallow list is defined
-			_, disallowContains := DisallowList[s]
-			if disallowContains { // If disallow list contains it, delete it
-				delete(response, s)
-			}
-		}
 	}
 }

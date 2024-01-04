@@ -20,6 +20,9 @@ type KafkaIdleTopics struct {
 	skip                     string
 	productionAssessmentTime int
 	hideInternalTopics       bool
+	AllowList                StringArrayFlag
+	DisallowList             StringArrayFlag
+	hideDerivativeTopics     StringArrayFlag
 	topicsIdleMinutes        int64
 	waitForTopicEvaluation   sync.WaitGroup
 	topicPartitionMap        map[string][]int32
@@ -42,7 +45,25 @@ func (c *KafkaIdleTopics) getClusterTopics(adminClient sarama.ClusterAdmin) map[
 		c.topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
 	}
 
-	filterListedTopics(c.topicPartitionMap)
+	c.filterListedTopics(c.topicPartitionMap)
+
+	if c.hideInternalTopics {
+		for t := range c.topicPartitionMap {
+			if strings.HasPrefix(t, "_") {
+				delete(c.topicPartitionMap, t)
+			}
+		}
+	}
+
+	if c.hideDerivativeTopics != nil {
+		for t := range c.topicPartitionMap {
+			for candidate := range c.hideDerivativeTopics {
+				if strings.HasPrefix(t, candidate) {
+					delete(c.topicPartitionMap, t)
+				}
+			}
+		}
+	}
 
 	return c.topicPartitionMap
 }
@@ -319,4 +340,23 @@ func (c *KafkaIdleTopics) writeDeleteCandidatesLocally() string {
 	}
 	file.Sync()
 	return file.Name()
+}
+
+// Filters the provided slice of topics according to what is provided in AllowList and DisallowList
+func (c *KafkaIdleTopics) filterListedTopics(response map[string][]int32) {
+
+	for s, _ := range response { // Filter out for lists
+		if c.AllowList != nil { // If allow list is defined
+			_, allowContains := c.AllowList[s]
+			if !allowContains { // If allow list does not contain it, delete it
+				delete(response, s)
+			}
+		}
+		if c.DisallowList != nil { // If disallow list is defined
+			_, disallowContains := c.DisallowList[s]
+			if disallowContains { // If disallow list contains it, delete it
+				delete(response, s)
+			}
+		}
+	}
 }

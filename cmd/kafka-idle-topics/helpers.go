@@ -11,7 +11,7 @@ import (
 	"unicode"
 )
 
-var Version = "1.1-SNAPSHOT"
+var Version = "1.1"
 
 type StringArrayFlag map[string]bool
 

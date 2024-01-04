@@ -18,18 +18,19 @@ func NewKafkaIdleTopics() *KafkaIdleTopics {
 func ReadCommands() *KafkaIdleTopics {
 	thisInstance := NewKafkaIdleTopics()
 
-	flag.StringVar(&thisInstance.kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma.")
-	flag.StringVar(&thisInstance.kafkaUsername, "username", "", "Username in the PLAIN module.")
-	flag.StringVar(&thisInstance.kafkaPassword, "password", "", "Password in the PLAIN module.")
+	flag.StringVar(&thisInstance.kafkaUrl, "bootstrap-servers", "", "Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma. Can be set using env variable KAFKA_BOOTSTRAP")
+	flag.StringVar(&thisInstance.kafkaUsername, "username", "", "Username in the PLAIN module. Can be set using env variable KAFKA_USERNAME")
+	flag.StringVar(&thisInstance.kafkaPassword, "password", "", "Password in the PLAIN module. Can be set using env variable KAFKA_PASSWORD")
 	flag.StringVar(&thisInstance.kafkaSecurity, "kafkaSecurity", "none", "Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none.")
 	flag.StringVar(&thisInstance.fileName, "filename", "idleTopics.txt", "Custom filename for the output if needed.")
 	flag.StringVar(&thisInstance.skip, "skip", "", "Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.")
 	flag.IntVar(&thisInstance.productionAssessmentTime, "productionAssessmentTimeMs", 30000, "Timeframe to assess active production.")
-	flag.Int64Var(&thisInstance.topicsIdleMinutes, "idleMinutes", 0, "Amount of minutes a topic should be idle to report it.")
+	flag.Int64Var(&thisInstance.topicsIdleMinutes, "idleMinutes", 0, "Amount of minutes a topic should be idle to report it. Can be set using env variable KAFKA_IDLE_MINUTES")
 	flag.BoolVar(&thisInstance.hideInternalTopics, "hideInternalTopics", false, "Hide internal topics from assessment.")
+	flag.Var(&thisInstance.hideDerivativeTopics, "hideTopicsPrefixes", "Disqualify provided prefixes from assessment. A comma delimited list. It also accepts a path to a file containing a list.")
+	flag.Var(&thisInstance.AllowList, "allowList", "A comma delimited list of topics to evaluate. It also accepts a path to a file containing a list of topics.")
+	flag.Var(&thisInstance.DisallowList, "disallowList", "A comma delimited list of topics to exclude from evaluation. It also accepts a path to a file containing a list of topics.")
 	versionFlag := flag.Bool("version", false, "Print the current version and exit")
-	flag.Var(&AllowList, "allowList", "A comma delimited list of topics to evaluate. It also accepts a path to a file containing a list of topics.")
-	flag.Var(&DisallowList, "disallowList", "A comma delimited list of topics to exclude from evaluation. It also accepts a path to a file containing a list of topics.")
 
 	flag.Parse()
 
@@ -57,7 +58,6 @@ func main() {
 	if myChecker.topicsIdleMinutes == 0 {
 		envVar, err := GetOSEnvVar("KAFKA_IDLE_MINUTES")
 		if err != nil {
-			log.Printf("%s, using default of 0\n", err)
 			myChecker.topicsIdleMinutes = 0
 		} else {
 			idleInt, err := strconv.ParseInt(envVar, 10, 64)
@@ -73,14 +73,6 @@ func main() {
 
 	// Extract Topics in Cluster
 	myChecker.topicPartitionMap = myChecker.getClusterTopics(myChecker.getAdminClient(myChecker.kafkaSecurity))
-
-	if myChecker.hideInternalTopics {
-		for t := range myChecker.topicPartitionMap {
-			if strings.HasPrefix(t, "_") {
-				delete(myChecker.topicPartitionMap, t)
-			}
-		}
-	}
 
 	if !isInSlice("production", stepsToSkip) {
 		if myChecker.topicsIdleMinutes == 0 {

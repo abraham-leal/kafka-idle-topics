@@ -54,8 +54,8 @@ func teardown() {
 
 func TestFilterAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Allowlist")
-	AllowList = StringArrayFlag{topicB: true}
-	DisallowList = nil
+	instanceOfChecker.AllowList = StringArrayFlag{topicB: true}
+	instanceOfChecker.DisallowList = nil
 	adminClient := instanceOfChecker.getAdminClient("none")
 	defer adminClient.Close()
 
@@ -69,16 +69,16 @@ func TestFilterAllowListTopics(t *testing.T) {
 	assert.Equal(t, expectedTopicResult, actualTopics)
 
 	log.Printf("Finished Assessment for Allowlist, cleaning up...")
-	AllowList = nil
-	DisallowList = nil
+	instanceOfChecker.AllowList = nil
+	instanceOfChecker.DisallowList = nil
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
 }
 
 func TestFilterDisAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Disallowlist")
-	DisallowList = StringArrayFlag{topicA: true}
-	AllowList = nil
+	instanceOfChecker.DisallowList = StringArrayFlag{topicA: true}
+	instanceOfChecker.AllowList = nil
 	adminClient := instanceOfChecker.getAdminClient("none")
 	defer adminClient.Close()
 
@@ -92,10 +92,36 @@ func TestFilterDisAllowListTopics(t *testing.T) {
 	assert.Equal(t, expectedTopicResult, actualTopics)
 
 	log.Printf("Finished Assessment for Disallowlist, cleaning up...")
-	DisallowList = nil
-	AllowList = nil
+	instanceOfChecker.DisallowList = nil
+	instanceOfChecker.AllowList = nil
 	deleteTopicHelper(topicA)
 	deleteTopicHelper(topicB)
+}
+
+func TestFilterDerivativeTopics(t *testing.T) {
+	log.Printf("Starting Assessment for Derivative Topics")
+	instanceOfChecker.hideDerivativeTopics = StringArrayFlag{"dlq-": true, "success": true, "error": true}
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
+
+	createTopicHelper(topicA)
+	createTopicHelper(topicB)
+	createTopicHelper("dlq-conn1")
+	createTopicHelper("error-conn2")
+	createTopicHelper("success-conn3")
+
+	actualTopics := instanceOfChecker.getClusterTopics(adminClient)
+
+	expectedTopicResult := map[string][]int32{topicA: {0}, topicB: {0}}
+
+	assert.Equal(t, expectedTopicResult, actualTopics)
+
+	log.Printf("Finished Assessment for Derivative Topics, cleaning up...")
+	deleteTopicHelper(topicA)
+	deleteTopicHelper(topicB)
+	deleteTopicHelper("dlq-conn1")
+	deleteTopicHelper("error-conn2")
+	deleteTopicHelper("success-conn3")
 }
 
 func TestFilterNoStorageTopics(t *testing.T) {

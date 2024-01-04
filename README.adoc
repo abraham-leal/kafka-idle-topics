@@ -23,25 +23,27 @@ Usage of ./kafka-idle-topics:
   -allowList value
     	A comma delimited list of topics to evaluate. It also accepts a path to a file containing a list of topics.
   -bootstrap-servers string
-    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma.
+    	Address to the target Kafka Cluster. Accepts multiple endpoints separated by a comma. Can be set using env variable KAFKA_BOOTSTRAP
   -disallowList value
     	A comma delimited list of topics to exclude from evaluation. It also accepts a path to a file containing a list of topics.
   -filename string
     	Custom filename for the output if needed. (default "idleTopics.txt")
   -hideInternalTopics
     	Hide internal topics from assessment.
+  -hideTopicsPrefixes value
+    	Disqualify provided prefixes from assessment. A comma delimited list. It also accepts a path to a file containing a list.
   -idleMinutes int
-    	Amount of minutes a topic should be idle to report it.
+    	Amount of minutes a topic should be idle to report it. Can be set using env variable KAFKA_IDLE_MINUTES
   -kafkaSecurity string
     	Type of connection to attempt. Options: plain_tls, plain (no tls), tls (one-way), none. (default "none")
   -password string
-    	Password in the PLAIN module.
+    	Password in the PLAIN module. Can be set using env variable KAFKA_PASSWORD
   -productionAssessmentTimeMs int
     	Timeframe to assess active production. (default 30000)
   -skip string
     	Filtering to skip. Options are: production, consumption, storage. This can be a comma-delimited list.
   -username string
-    	Username in the PLAIN module.
+    	Username in the PLAIN module. Can be set using env variable KAFKA_USERNAME
   -version
     	Print the current version and exit
 ----
@@ -105,6 +107,8 @@ Setting `-allowList` or/and `-disallowList` flags will accept either a comma del
 comma delimited entries for topic names.
 If specifying a file, make sure it has an extension (such as `.txt`).
 A topic specified in `-disallowList` and `-allowList` will be disallowed by default.
+
+Additionally, you may set `-hideTopicsPrefixes` to hide custom prefixes from the evaluation.
 
 == Feature Requests / Issue Reporting
 

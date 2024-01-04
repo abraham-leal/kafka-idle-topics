@@ -14,8 +14,6 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
-var adminClient sarama.ClusterAdmin
-var clusterClient sarama.Client
 var StopProduction = false
 var StopConsumption = false
 var topicA = "hasThings"
@@ -48,19 +46,18 @@ func setup() {
 
 	instanceOfChecker.kafkaUrl = brokerList[0]
 	instanceOfChecker.productionAssessmentTime = 30000
-	adminClient = instanceOfChecker.getAdminClient("none")
-	clusterClient = instanceOfChecker.getClusterClient("none")
 }
 
 func teardown() {
-	adminClient.Close()
-	clusterClient.Close()
+	log.Println("Ended tests!")
 }
 
 func TestFilterAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Allowlist")
 	AllowList = StringArrayFlag{topicB: true}
 	DisallowList = nil
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -82,6 +79,8 @@ func TestFilterDisAllowListTopics(t *testing.T) {
 	log.Printf("Starting Assessment for Disallowlist")
 	DisallowList = StringArrayFlag{topicA: true}
 	AllowList = nil
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -104,6 +103,8 @@ func TestFilterNoStorageTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
+	clusterClient := instanceOfChecker.getClusterClient("none")
+	defer clusterClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -130,6 +131,8 @@ func TestFilterActiveProducerTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
+	clusterClient := instanceOfChecker.getClusterClient("none")
+	defer clusterClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -157,6 +160,8 @@ func TestFilterActiveConsumerGroupTopics(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
@@ -188,12 +193,16 @@ func TestCandidacyRemoval(t *testing.T) {
 	instanceOfChecker.DeleteCandidates = map[string]bool{}
 	StopProduction = false
 	StopConsumption = false
+	clusterClient := instanceOfChecker.getClusterClient("none")
+	defer clusterClient.Close()
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
 
 	createTopicHelper(topicA)
 	createTopicHelper(topicB)
 
 	go produceTopicHelper(topicA)
-	time.Sleep(time.Duration(150) * time.Millisecond)
+	time.Sleep(time.Duration(500) * time.Millisecond)
 	StopProduction = true
 
 	instanceOfChecker.topicPartitionMap = map[string][]int32{topicA: {0}, topicB: {0}}
@@ -212,7 +221,7 @@ func TestCandidacyRemoval(t *testing.T) {
 	StopProduction = true
 	StopConsumption = true
 
-	time.Sleep(time.Duration(100) * time.Millisecond)
+	time.Sleep(time.Duration(500) * time.Millisecond)
 
 	instanceOfChecker.filterOutDeleteCandidates()
 
@@ -225,6 +234,9 @@ func TestCandidacyRemoval(t *testing.T) {
 }
 
 func createTopicHelper(topicName string) {
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
+
 	thisTopicDetail := sarama.TopicDetail{
 		NumPartitions:     1,
 		ReplicationFactor: 1,
@@ -254,6 +266,9 @@ func createTopicHelper(topicName string) {
 }
 
 func deleteTopicHelper(topicName string) {
+	adminClient := instanceOfChecker.getAdminClient("none")
+	defer adminClient.Close()
+
 	err := adminClient.DeleteTopic(topicName)
 	if err != nil {
 		log.Printf("Could not delete topic: %v", err)
@@ -277,6 +292,8 @@ func consumerGroupTopicHelper(topicName string, cgName string) {
 	consumer := Consumer{
 		ready: make(chan bool),
 	}
+	clusterClient := instanceOfChecker.getClusterClient("none")
+	defer clusterClient.Close()
 
 	log.Println("Starting Consumer")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -316,6 +333,8 @@ func consumerGroupTopicHelper(topicName string, cgName string) {
 }
 
 func produceTopicHelper(topicName string) {
+	clusterClient := instanceOfChecker.getClusterClient("none")
+	defer clusterClient.Close()
 	producer, err := sarama.NewSyncProducerFromClient(clusterClient)
 	if err != nil {
 		log.Fatalf("Could not produce to test cluster: %v", err)

@@ -30,6 +30,7 @@ type KafkaIdleTopics struct {
 Uses the provided Sarama Admin Client to get a list of current topics in the cluster
 */
 func (c *KafkaIdleTopics) getClusterTopics(adminClient sarama.ClusterAdmin) map[string][]int32 {
+	defer adminClient.Close()
 	log.Println("Loading Topics...")
 	topicMetadata, err := adminClient.ListTopics()
 	if err != nil {
@@ -41,17 +42,7 @@ func (c *KafkaIdleTopics) getClusterTopics(adminClient sarama.ClusterAdmin) map[
 		c.topicPartitionMap[t] = makeRange(0, td.NumPartitions-1)
 	}
 
-	log.Println("Before filter:")
-	for t := range c.topicPartitionMap {
-		log.Println(t)
-	}
-
 	filterListedTopics(c.topicPartitionMap)
-
-	log.Println("After filter:")
-	for t := range c.topicPartitionMap {
-		log.Println(t)
-	}
 
 	return c.topicPartitionMap
 }
@@ -61,6 +52,7 @@ Adds topics with nothing stored in them to c.DeleteCandidates
 It is also possible for this method to remove candidacy if it detects activity.
 */
 func (c *KafkaIdleTopics) filterEmptyTopics(clusterClient sarama.Client) {
+	defer clusterClient.Close()
 	log.Println("Evaluating Topics without anything in them...")
 
 	for topic, td := range c.topicPartitionMap {
@@ -94,6 +86,7 @@ Adds topics that aren't being actively produced to c.DeleteCandidates
 It is also possible for this method to remove candidacy if it detects activity.
 */
 func (c *KafkaIdleTopics) filterActiveProductionTopics(clusterClient sarama.Client) {
+	defer clusterClient.Close()
 	log.Println("Evaluating Topics without any active production...")
 
 	beginTopicInspection := map[string]map[int64]int64{}
@@ -147,6 +140,7 @@ Adds topics that do not have any consumer groups to c.DeleteCandidates
 It is also possible for this method to remove candidacy if it detects activity.
 */
 func (c *KafkaIdleTopics) filterTopicsWithConsumerGroups(adminClient sarama.ClusterAdmin) {
+	defer adminClient.Close()
 	log.Println("Evaluating Topics without active Consumer Groups...")
 	allConsumerGroups, err := adminClient.ListConsumerGroups()
 	if err != nil {
@@ -182,6 +176,7 @@ Adds topics that have not been produced to since a c.timeMinutesSince to c.Delet
 It is also possible for this method to remove candidacy if it detects activity.
 */
 func (c *KafkaIdleTopics) filterTopicsIdleSince(clusterClient sarama.Client) {
+	defer clusterClient.Close()
 	log.Printf("Evaluating Topics that haven't been produced to since... %v", time.Now().Add(-time.Duration(c.topicsIdleMinutes)*time.Minute))
 
 	evaluatingConsumer, err := sarama.NewConsumerFromClient(clusterClient)

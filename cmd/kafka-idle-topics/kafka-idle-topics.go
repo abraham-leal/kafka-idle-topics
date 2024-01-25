@@ -49,7 +49,7 @@ func main() {
 	if myChecker.kafkaSecurity == "plain_tls" || myChecker.kafkaSecurity == "plain" {
 		// If the parameters are empty, go fetch from env
 		if myChecker.kafkaUrl == "" || myChecker.kafkaUsername == "" || myChecker.kafkaPassword == "" {
-			myChecker.kafkaUsername, _ = GetOSEnvVar("KAFKA_BOOTSTRAP")
+			myChecker.kafkaUrl, _ = GetOSEnvVar("KAFKA_BOOTSTRAP")
 			myChecker.kafkaUsername, _ = GetOSEnvVar("KAFKA_USERNAME")
 			myChecker.kafkaPassword, _ = GetOSEnvVar("KAFKA_PASSWORD")
 		}

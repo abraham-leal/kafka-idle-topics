@@ -96,7 +96,7 @@ Git clone, example with Confluent Cloud:
 ----
 git clone https://github.com/abraham-leal/kafka-idle-topics
 cd kafka-idle-topics/
-go build ./cmd/kafka-idle-topics/kafka-idle-topics.go
+go build ./cmd/kafka-idle-topics/*
 ./kafka-idle-topics -bootstrap-servers <<bootstrap>> -username <<API-KEY>> -password <<API-SECRET>> -kafkaSecurity plain_tls
 ----
 
